@@ -1,0 +1,90 @@
+local Binary = require "luan:Binary.luan"
+local Html = require "luan:Html.luan"
+local Io = require "luan:Io.luan"
+local Luan = require "luan:Luan.luan"
+local Math = require "luan:Math.luan"
+local Package = require "luan:Package.luan"
+local String = require "luan:String.luan"
+local Table = require "luan:Table.luan"
+local Thread = require "luan:Thread.luan"
+local Time = require "luan:Time.luan"
+local Http = require "luan:http/Http.luan"
+local Http_test = require "luan:http/Http_test.luan"
+local Server = require "luan:http/Server.luan"
+local Lucene = require "luan:lucene/Lucene.luan"
+local Mail = require "luan:mail/Mail.luan"
+
+local error = Luan.error
+local range = Luan.range or error()
+local trim = String.trim or error()
+local find = String.find or error()
+local init = Http_test.init or error()
+local get_page = Http_test.get_page or error()
+local run_page = Http_test.run_page or error()
+
+
+local function print(...)
+	Io.print_to(Io.stderr,...)
+end
+
+local page
+
+init()
+Http.request.parameters.code = "require('luan:Io.luan').print 'hi'"
+page = run_page(require("luan:http/tools/Run.luan").respond)
+trim(page) == "hi" or error "failed"
+
+--[[
+init()
+Http.request.parameters.cmd = "'ab'..'cd'"
+page = run_page(require("luan:http/tools/Shell.luan").respond)
+find(page,"abcd") or error "failed"
+]]
+
+-- lucene
+
+local this_file = Io.schemes.file(Luan.arg[0])
+local this_dir = this_file.parent()
+local lucene_dir = this_dir.parent().child("build").child("lucene_test")
+--print(lucene_dir.to_string())
+local db = Lucene.index(lucene_dir)
+db.delete_all()
+
+local Web_search = require "luan:lucene/Web_search.luan"
+local web_search = Web_search.of(db)
+
+init()
+web_search()
+
+init()
+Http.request.parameters.query = ""
+Http.request.parameters.rows = "100"
+Http.request.parameters.sort = ""
+web_search()
+
+
+-- website
+
+function Io.schemes.site(path)
+	return Io.uri( "file:../website/src"..path )
+end
+
+--[[
+init(); get_page "/"
+init(); get_page "/docs.html"
+init(); get_page "/tutorial.html"
+init(); get_page "/pil.html"
+init(); get_page "/manual.html"
+init(); get_page "/diff.html"
+]]
+init(); get_page "/examples/hi.html"
+init(); get_page "/examples/hi2.html"
+init(); get_page "/examples/shell.html"
+
+init()
+Http.request.parameters.name = "bob"
+page = get_page "/examples/hi2.html"
+find(page,"bob") or error "failed"
+
+
+print "done"

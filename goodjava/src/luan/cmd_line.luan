@@ -1,0 +1,32 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local load_file = Luan.load_file or error()
+local Table = require "luan:Table.luan"
+local pack = Table.pack or error()
+local unpack = Table.unpack or error()
+local Io = require "luan:Io.luan"
+local print = Io.print or error()
+
+
+local args = {...}
+if #args == 0 then
+	print("Luan "..Luan.VERSION)
+	Io.debug("> ")
+else
+	local file = args[1]
+	Luan.arg = {}
+	for j,v in ipairs(args) do
+		Luan.arg[j-1] = v
+	end
+	try
+		local main_file = load_file(file) or error("file '"..file.."' not found")
+		local rtn = pack( main_file( unpack(Luan.arg) ) )
+		if rtn.n > 0 then
+			print( unpack(rtn) )
+		end
+	catch e
+--		require "java"; e.java.printStackTrace();
+		Io.print_to(Io.stderr, e )
+	end
+end

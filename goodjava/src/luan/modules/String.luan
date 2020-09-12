@@ -1,0 +1,27 @@
+require "java"
+local StringLuan = require "java:luan.modules.StringLuan"
+local Pattern = require "java:java.util.regex.Pattern"
+
+local String = {}
+
+String.char = StringLuan.char_
+String.encode = StringLuan.encode
+String.find = StringLuan.find
+String.format = StringLuan.format
+String.gmatch = StringLuan.gmatch
+String.gsub = StringLuan.gsub
+String.lower = StringLuan.lower
+String.match = StringLuan.match
+String.matches = StringLuan.matches
+String.regex_quote = Pattern.quote
+String.rep = StringLuan.rep
+String.reverse = StringLuan.reverse
+String.split = StringLuan.split
+String.sub = StringLuan.sub
+String.to_binary = StringLuan.to_binary
+String.to_number = StringLuan.to_number
+String.trim = StringLuan.trim
+String.unicode = StringLuan.unicode
+String.upper = StringLuan.upper
+
+return String

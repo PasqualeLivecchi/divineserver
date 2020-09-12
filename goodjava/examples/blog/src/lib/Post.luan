@@ -1,0 +1,74 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local type = Luan.type or error()
+local Time = require "luan:Time.luan"
+local now = Time.now or error()
+local String = require "luan:String.luan"
+local trim = String.trim or error()
+local Db = require "site:/lib/Db.luan"
+
+
+local Post = {}
+
+local function from_doc(doc)
+	return Post.new {
+		id = doc.id
+		subject = doc.subject
+		content = doc.content
+		date = doc.date
+	}
+end
+
+function Post.new(this)
+	type(this.subject)=="string" or error "subject must be string"
+	type(this.content)=="string" or error "content must be string"
+	this.date = this.date or now()
+
+	function this.save()
+		local doc = {
+			type = "post"
+			id = this.id
+			subject = this.subject
+			content = this.content
+			date = this.date
+		}
+		Db.save(doc)
+		this.id = doc.id
+	end
+
+	return this
+end
+
+function Post.get_by_id(id)
+	local doc = Db.get_document("id:"..id)
+	return doc and from_doc(doc)
+end
+
+function Post.get_all()
+	local docs = Db.search("type:post",1,1000,{sort="id desc"})
+	local posts = {}
+	for _, doc in ipairs(docs) do
+		posts[#posts+1] = from_doc(doc)
+	end
+	return posts
+end
+
+function Post.search(query)
+	query = trim(query)
+	if #query == 0 then
+		return Post.get_all()
+	end
+	local docs = Db.search(query,1,1000)
+	local posts = {}
+	for _, doc in ipairs(docs) do
+		posts[#posts+1] = from_doc(doc)
+	end
+	return posts
+end
+
+function Post.delete_by_id(id)
+	Db.delete("id:"..id)
+end
+
+return Post

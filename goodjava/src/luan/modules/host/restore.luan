@@ -1,0 +1,19 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local Io = require "luan:Io.luan"
+local print = Io.print or error()
+local uri = Io.uri or error()
+local Hosting = require "luan:host/Hosting.luan"
+
+if #{...} ~= 2 then
+	Io.stderr.write "usage: luan luan:host/restore.luan domain password\n"
+	return
+end
+
+local domain, password = ...
+
+local zip_file = uri("file:backup.zip")
+zip_file.exists() or error "backup.zip not found"
+Hosting.caller(domain).lucene_restore(password,zip_file)
+
+print("restored lucene from backup.zip to "..domain)

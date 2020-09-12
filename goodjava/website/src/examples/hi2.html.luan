@@ -1,0 +1,41 @@
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+
+
+local function form()
+%>
+<!doctype html>
+<html>
+	<body>
+		<h1>Hello</h1>
+		<form>
+			What is your name?
+			<input name="name">
+			<input type=submit>
+		</form>
+	</body>
+</html>
+<%
+end
+
+local function hello(name)
+%>
+<!doctype html>
+<html>
+	<body>
+		<h1>Hello</h1>
+		<p>Hi <%= name %>!</p>
+	</body>
+</html>
+<%
+end
+
+return function()
+	Io.stdout = Http.response.text_writer()
+	local name = Http.request.parameters.name
+	if name == nil then
+		form()
+	else
+		hello(name)
+	end
+end

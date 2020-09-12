@@ -1,0 +1,22 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local Db = require "site:/lib/Db.luan"
+
+
+return function()
+	local backup = Io.uri "site:/private/local/backup.zip"
+	backup.delete()
+	Db.zip(backup)
+
+	Io.stdout = Http.response.text_writer()
+%>
+<!doctype html>
+<html>
+	<body>
+		backed up to <a href="/private/local/backup.zip">/private/local/backup.zip</a>
+	</body>
+</html>
+<%
+end

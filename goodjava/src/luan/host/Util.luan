@@ -1,0 +1,92 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local do_file = Luan.do_file or error()
+local ipairs = Luan.ipairs or error()
+local stringify = Luan.stringify or error()
+local Io = require "luan:Io.luan"
+local String = require "luan:String.luan"
+local lower = String.lower or error()
+local format = String.format or error()
+local to_binary = String.to_binary or error()
+local Binary = require "luan:Binary.luan"
+local bytes = Binary.byte or error()
+local base64_encode = Binary.base64_encode or error()
+local digest_message = Binary.digest_message or error()
+local Hosted = require "luan:host/Hosted.luan"
+local Sql = require "luan:sql/Sql.luan"
+local database = Sql.database or error()
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Util"
+
+
+local Util = {}
+
+function Util.read_password(domain)
+	domain = lower(domain)
+	return do_file(Hosted.sites_dir..domain.."/info.luan").password or error()
+end
+
+local function basic_authentication(dir,password)
+	local sha1 = digest_message("SHA1",to_binary(password))
+	local encoded = base64_encode(sha1)
+	local file = Io.schemes.file(dir.."/password.nginx")
+	file.delete()
+	file.write_text("admin:{SHA}"..encoded.."\n")
+end
+
+local function digest_authentication(dir,password)
+	local s = "admin:Restricted:"..password
+	local md5 = digest_message("MD5",to_binary(s))
+	md5 = {bytes(md5,1,#md5)}
+	local encoded = ""
+	for _, n in ipairs(md5) do
+		encoded = encoded..format("%02x",n)
+	end
+	local file = Io.schemes.file(dir.."/password.nginx")
+	file.delete()
+	file.write_text("admin:Restricted:"..encoded.."\n")
+end
+
+function Util.set_password(domain,password)
+	local dir = Hosted.sites_dir..lower(domain)
+	local file = Io.schemes.file(dir.."/info.luan")
+	file.delete()
+	file.write_text("return "..stringify{password=password}.."\n")
+	digest_authentication(dir,password)
+end
+
+local fn = Luan.load_file("file:postgres.luan") or error()
+local pg_admin = fn()
+
+function Util.set_postgres_password(domain,password)
+	if pg_admin == nil then
+		return
+	end
+	local db = database(pg_admin)
+	local exists = db.query("select rolname from pg_roles where rolname=?",domain).results() ~= nil;
+	--logger.info("exists "..exists)
+	if exists then
+		db.update( [[alter role "]]..domain..[[" with encrypted password ']]..password..[[']] )
+	end
+	db.close()
+end
+
+function Util.check_postgres_password(domain,password)
+	if pg_admin == nil then
+		return
+	end
+	local db = database(pg_admin)
+	local exists = db.query("select rolname from pg_roles where rolname=?",domain).results() ~= nil;
+	db.close()
+	if exists then
+		db = database{
+			class = "org.postgresql.Driver"
+			url = "jdbc:postgresql://localhost:5432/"..domain
+			user = domain
+			password = password
+		}
+		db.close()
+	end
+end
+
+return Util

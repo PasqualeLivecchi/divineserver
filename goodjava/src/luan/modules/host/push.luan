@@ -1,0 +1,12 @@
+local Io = require "luan:Io.luan"
+local print = Io.print
+local Hosting = require "luan:host/Hosting.luan"
+
+if #{...} ~= 3 then
+	Io.stderr.write "usage: luan luan:host/push.luan domain password dir\n"
+	return
+end
+
+Hosting.push(...)
+
+print("done with "..(...))

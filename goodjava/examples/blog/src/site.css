@@ -1,0 +1,39 @@
+
+body {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 14px;
+	margin: 1em 5%;
+}
+
+a[href] {
+	text-decoration: inherit;
+	color: #337ab7;
+}
+a[href]:visited {
+	color: #034a87;
+}
+a[href]:hover {
+	text-decoration: underline;
+}
+
+
+input[type="text"], input[type="email"] {
+	font: inherit;
+	padding: .5em .8em;
+	border-radius: 4px;
+	border-style: groove;
+}
+input[type="text"]:focus, input[type="email"]:focus {
+	border-color: #66afe9;
+	outline: none;
+}
+input[type="submit"] {
+	font: inherit;
+	padding: .5em;
+	border-radius: 4px;
+	background: #eee;
+	border-color: #eee;
+}
+input[type="submit"]:hover {
+	background: #ddd !important;
+}

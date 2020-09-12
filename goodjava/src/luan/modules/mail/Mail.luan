@@ -1,0 +1,19 @@
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local type = Luan.type or error()
+local System = require "java:java.lang.System"
+local SmtpCon = require "java:luan.modules.mail.SmtpCon"
+
+
+local Mail = {}
+
+System.setProperty( "mail.mime.charset", "UTF-8" )
+
+function Mail.Sender(params)
+	type(params)=="table" or error()
+	local smtpCon = SmtpCon.new(params)
+	return { send = smtpCon.send }
+end
+
+return Mail

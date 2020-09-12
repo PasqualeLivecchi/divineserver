@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+	<title>Luan Tutorial</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<style>
+		@import "site.css";
+	</style>
+</head>
+<body>
+
+<div small>
+	<a href=".">Luan</a>
+	/ <a href="docs.html">Documentation</a>
+</div>
+
+<h1>Luan Tutorial</h1>
+
+
+<p>Create a file <b>hello.luan</b> containing:</p>
+
+<pre>
+	%>
+	Hello World
+	<%
+</pre>
+
+<p>To run this, type <b>luan hello.luan</b> on the command line.  This should print <b>Hello World</b>.</p>
+
+<p>The syntax here is based on <a href="http://en.wikipedia.org/wiki/JavaServer_Pages">JSP</a>.  Let's change it a little:</p>
+
+<pre>
+	local name = "Bob"
+	%>
+	Hello <%= name %>
+	<%
+</pre>
+
+<p>This should print <b>Hello Bob</b>.  Now let's try a more conventional approach:</p>
+
+<pre>
+	local Io = require "luan:Io.luan"
+	local print = Io.print
+
+	print("Hello World")
+</pre>
+
+<p>In Luan, a function call with one string argument doesn't require parenthesis, so <b>print("Hello World")</b> is the same as <b>print "Hello World"</b> and <b>require "luan:Io.luan"</b> is the same as <b>require("luan:Io.luan")</b>.  Both <b>require</b> and <b>print</b> are functions.</p>
+
+<p>The <b>require</b> function takes a <a href="http://en.wikipedia.org/wiki/Uniform_resource_identifier">URI</a> as an argument.  Examples of URIs are "<b>luan:Io.luan</b>" and "<b>file:hello.luan</b>".  <b>require</b> is used to import a module, which is returned from the <b>require</b> function call.  In the case above, we assign the module to the local variable <b>Io</b>.  The function <b>print</b> is a member of this module.  We could have done <b>Io.print("Hello World")</b> but instead we chose to assign <b>print</b> to a local variable and use that to call the function.</p>
+
+<p>Luan starts with only two defined functions: <b>require</b> and <b>java</b>.  You will use <b>require</b> to import whatever you need.  This is a little more work, but makes it clear in each file where each function comes from.</p>
+
+<p>Let's a make fancier version:</p>
+
+<pre>
+	local Io = require "luan:Io.luan"
+	local print = Io.print
+
+	local function hello(name)
+		print("Hello "..name)
+	end
+
+	hello("Bob")
+</pre>
+
+<p>The <b>..</b> operator does concatenation.  This will print <b>Hello Bob</b>.</p>
+
+<p>Now let's make a web page.  First we need a directory for our website.  So create a directory <b>site</b>.  In this directory, create a file <b>hi.html.luan</b> containing:
+
+<pre>
+	local Io = require "luan:Io.luan"
+	local Http = require "luan:http/Http.luan"
+	
+	return function()
+		Io.stdout = Http.response.text_writer()
+	%>
+	&lt;!doctype html>
+	&lt;html>
+		&lt;body>
+			Hello World
+		&lt;/body>
+	&lt;/html>
+	<%
+	end
+</pre>
+
+<p>Now go back to the parent directory and do <b>luan luan:http/serve.luan file:site</b>.  This will run the Luan web server on port 8080.  Try going to <a href="http://localhost:8080/">http://localhost:8080/</a>.  You should see the directory.  If you click on <b>hi.html.luan</b> you will see the source.  But if you remove the <b>.luan</b> and just go to <a href="http://localhost:8080/hi.html">http://localhost:8080/hi.html</a> then you will run the program which will generate the web page.</p>
+
+<p>The Luan webserver expects the file to return a function and calls it to generate the page.  Code of the form <b>%>...<%</b> writes its output to <b>Io.stdout</b> which by default is the standard output of the command line.  So in the returned function one usually starts by setting <b>Io.stdout</b> to a <code>text_writer</code> which writes its output to the HTTP response (to the web browser).</p>
+
+<p>You can find this example and others in the <a href="examples/">examples directory</a>.  Take a look at <a href="examples/hi2.luan">hi2.luan</a> next.  Remember to remove the <b>.luan</b> from the URL to run the code.</p>
+
+<p>So now you have built your website and you want to publish it to the web.  If you have your own domain, create a CNAME record for it pointing to <b>s1.luan.ws</b>.  If you don't have a domain, just use a domain like <b>bob.s1.luan.ws</b> (anything of the form <b>*.s1.luan.ws</b>).  Assuming your directory is <b>site</b> and you will use the password <b>secret</b>, do the following from the command line:
+
+<pre>
+	luan luan:host/push.luan bob.s1.luan.ws secret site
+</pre>
+
+<p>The form is <b>luan luan:host/push.luan domain password directory</b>.  If you change your site, just run this again and your site will be updated.  To delete your site, do <b>luan luan:host/delete.luan domain password</b>.</p>
+
+<p>Hopefully this short tutorial gave you an idea of how to use Luan to make a website.</p>
+		
+</body>
+</html>

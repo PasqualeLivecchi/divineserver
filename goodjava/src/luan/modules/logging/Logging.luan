@@ -1,0 +1,29 @@
+require "java"
+local LuanLogger = require "java:luan.modules.logging.LuanLogger"
+
+if not LuanLogger.isConfigured() then
+	local System = require "java:java.lang.System"
+	local Layouts = require "java:goodjava.logger.Layouts"
+	local DateLayout = require "java:goodjava.logger.DateLayout"
+	local ListLayout = require "java:goodjava.logger.ListLayout"
+	local ConsoleAppender = require "java:goodjava.logger.ConsoleAppender"
+
+	local layout = ListLayout.new(DateLayout.new("yyyy-MM-dd HH:mm:ss,SSS")," ",Layouts.LEVEL_PADDED," ",Layouts.LOGGER," - ",Layouts.MESSAGE,"\n",Layouts.THROWABLE)
+	local appender = ConsoleAppender.new(layout,System.err)
+	LuanLogger.configure(appender)
+end
+
+
+local Logging = {}
+
+function Logging.logger(name)
+	local luan_logger = LuanLogger.new(name)
+	return {
+		error = luan_logger.error
+		warn = luan_logger.warn
+		info = luan_logger.info
+		debug = luan_logger.debug
+	}
+end
+
+return Logging

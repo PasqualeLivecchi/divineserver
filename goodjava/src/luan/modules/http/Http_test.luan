@@ -1,0 +1,84 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local set_metatable = Luan.set_metatable or error()
+local Package = require "luan:Package.luan"
+local Io = require "luan:Io.luan"
+local String = require "luan:String.luan"
+local matches = String.matches or error()
+local Http = require "luan:http/Http.luan"
+
+
+local Http_test = {}
+
+Http_test.welcome_file = "index.html"
+Http_test.cookies = {}
+
+function Http_test.get_page(path)
+	Http.request.path = path
+	if Http_test.welcome_file ~= nil and matches(path,"/$") then
+		path = path .. Http_test.welcome_file
+	end
+	local old_out = Io.stdout
+	try
+		local mod = Package.load("site:"..path..".luan") or error(path.." not found")
+		mod()
+		Http_test.text_writer.close()
+	finally
+		Io.stdout = old_out
+	end
+	return Http_test.result.read_text()
+end
+
+function Http_test.run_page(page_fn)
+	local old_out = Io.stdout
+	try
+		page_fn()
+		Http_test.text_writer.close()
+	finally
+		Io.stdout = old_out
+	end
+	return Http_test.result.read_text()
+end
+
+function Http_test.init()
+	function Http.reset_luan() end
+	Http.request = Http.new_request()
+	Http.request.cookies = Http_test.cookies
+
+	Http.response = {
+
+		headers = {}
+
+		status = Http.STATUS.OK
+
+		text_writer = function()
+			Http_test.result = Io.uri "string:"
+			Http_test.text_writer = Http_test.result.text_writer()
+			return Http_test.text_writer
+		end
+
+		set_cookie = function(name,value)
+			Http_test.cookies[name] = value
+		end
+
+		set_persistent_cookie = function(name,value)
+			Http_test.cookies[name] = value
+		end
+
+		remove_cookie = function(name)
+			Http_test.cookies[name] = nil
+		end
+
+		send_redirect = function(url)
+			Http.response.redirect = url
+		end
+
+		send_error = function(code)
+			error("sent error "..code)
+		end
+
+	}
+
+end
+
+return Http_test

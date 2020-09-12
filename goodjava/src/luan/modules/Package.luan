@@ -1,0 +1,9 @@
+require "java"
+local PackageLuan = require "java:luan.modules.PackageLuan"
+
+local Package = {}
+
+Package.loaded = PackageLuan.loaded()
+Package.load = PackageLuan.load
+
+return Package

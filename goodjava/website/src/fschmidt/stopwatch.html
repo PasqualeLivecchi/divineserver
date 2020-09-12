@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Stopwatch</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<style>
+			body {
+				text-align: center;
+			}
+			button {
+				cursor: pointer;
+				font-size: inherit;
+				border-radius: 6px;
+				display: none;
+			}
+		</style>
+		<script>
+
+			function now() {
+				return Math.floor(Date.now()/1000);
+			}
+
+			function show() {
+				var start = localStorage.start;
+				var time;
+				if( !start ) {
+					time = 0;
+				} else {
+					var stop = localStorage.stop || now();
+					time = stop - start;
+				}
+				var seconds = time % 60;
+				time = Math.floor(time/60);
+				var minutes = time % 60;
+				time = Math.floor(time/60);
+				var hours = time;
+				seconds = ('0'+seconds).slice(-2);
+				minutes = ('0'+minutes).slice(-2);
+				time = hours + ':' + minutes + ':' + seconds;
+				document.querySelector('[time]').innerHTML = time;
+
+				// fix buttons
+				var isRunning = localStorage.start && !localStorage.stop;
+				if( isRunning ) {
+					document.querySelector('[start]').style.display = 'none';
+					document.querySelector('[stop]').style.display = 'inline-block';
+					document.querySelector('[reset]').style.display = 'none';
+				} else {
+					document.querySelector('[start]').style.display = 'inline-block';
+					document.querySelector('[stop]').style.display = 'none';
+					if( localStorage.start ) {
+						document.querySelector('[reset]').style.display = 'inline-block';
+					} else {
+						document.querySelector('[reset]').style.display = 'none';
+					}
+				}
+			}
+
+			function start() {
+				var stop = localStorage.stop;
+				if( !stop ) {
+					localStorage.start = now();
+				} else {
+					localStorage.removeItem('stop');
+					localStorage.start = now() - (stop - localStorage.start);
+				}
+				show();
+			}
+
+			function stop() {
+				localStorage.stop = now();
+				show();
+			}
+
+			function reset() {
+				localStorage.removeItem('start');
+				localStorage.removeItem('stop');
+				show();
+			}
+
+			function loaded() {
+				show();
+				setInterval(show,1000);
+			}
+
+		</script>
+	</head>
+	<body onload="loaded()">
+		<h1 time></h1>
+		<button start onclick="start()">start</button>
+		<button stop onclick="stop()">stop</button>
+		<button reset onclick="reset()">reset</button>
+	</body>
+</html>

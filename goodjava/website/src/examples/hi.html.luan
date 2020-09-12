@@ -1,0 +1,15 @@
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+
+
+return function()
+	Io.stdout = Http.response.text_writer()
+%>
+<!doctype html>
+<html>
+	<body>
+		Hello World
+	</body>
+</html>
+<%
+end

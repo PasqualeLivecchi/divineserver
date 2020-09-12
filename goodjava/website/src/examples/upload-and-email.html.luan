@@ -1,0 +1,57 @@
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local Mail = require "luan:mail/Mail.luan"
+
+
+local send = Mail.Sender{
+	host = "smtpcorp.com"
+	username = "smtp@luan.ws"
+	password = "luanhost"
+	port = 2525
+}.send
+
+local function form()
+%>
+<!doctype html>
+<html>
+	<body>
+		<h1>Upload and Email</h1>
+		<form method="post" enctype="multipart/form-data">
+			<p>Email: <input name=email></p>
+			<p><input type=file name=file></p>
+			<p><input type=submit></p>
+		</form>
+	</body>
+</html>
+<%
+end
+
+local function sent()
+%>
+<!doctype html>
+<html>
+	<body>
+		<h1>Upload and Email</h1>
+		<p>file sent</p>
+	</body>
+</html>
+<%
+end
+
+return function()
+	Io.stdout = Http.response.text_writer()
+	local email = Http.request.parameters.email
+	if email == nil then
+		form()
+	else
+		local file = Http.request.parameters.file
+		send{
+			from = "smtp@luan.ws"
+			to = email
+			subject = "Upload and Email"
+			body = "file should be attached"
+			attachments = {file}
+		}
+		sent()
+	end
+end

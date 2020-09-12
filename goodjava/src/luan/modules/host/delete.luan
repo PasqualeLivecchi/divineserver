@@ -1,0 +1,12 @@
+local Io = require "luan:Io.luan"
+local print = Io.print
+local Hosting = require "luan:host/Hosting.luan"
+
+if #{...} ~= 2 then
+	Io.stderr.write "usage: luan luan:host/delete.luan domain password\n"
+	return
+end
+
+Hosting.delete(...)
+
+print("deleted "..(...))

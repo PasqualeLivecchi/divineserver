@@ -1,0 +1,276 @@
+require "java"
+local System = require "java:java.lang.System"
+local URL = require "java:java.net.URL"
+local BasicLuan = require "java:luan.modules.BasicLuan"
+local new_error = BasicLuan.new_error
+local ipairs = BasicLuan.ipairs
+local set_metatable = BasicLuan.set_metatable
+local load = BasicLuan.load
+local type = BasicLuan.type
+local StringLuan = require "java:luan.modules.StringLuan"
+local match = StringLuan.match  -- String.match
+local matches = StringLuan.matches  -- String.matches
+local IoLuan = require "java:luan.modules.IoLuan"
+local LuanUrl = require "java:luan.modules.url.LuanUrl"
+local LuanJava = require "java:luan.Luan"
+local LuanTable = require "java:luan.LuanTable"
+
+
+local Boot = {}
+
+
+local function error(message)
+	new_error(message).throw()
+end
+Boot.error = error
+
+local function no_security(fn)
+	LuanJava.checkCallerSecurity("no_security")
+	return function(...)
+		local security = LuanJava.setSecurity(nil)
+		try
+			return fn(...)
+		finally
+			security and LuanJava.setSecurity(security)
+		end
+	end
+end
+Boot.no_security = no_security
+
+
+local function new_LuanIn(io)
+	local this = {}
+	this.java = io
+	this.to_string = io.to_string
+	this.read_text = io.read_text
+	this.read_binary = io.read_binary
+	this.read_lines = io.read_lines
+	this.read_blocks = io.read_blocks
+	this.exists = io.exists
+	this.checksum = io.checksum
+	this.charset = io.charset
+	this.set_charset = io.set_charset
+	this.to_uri_string = io.to_uri_string
+	return this
+end
+Boot.new_LuanIn = new_LuanIn
+
+local function new_writer(writer)
+	local this = {}
+	this.java = writer
+	this.write = writer.write
+	this.close = writer.close
+	return this
+end
+
+function Boot.text_writer(out)
+	return new_writer( IoLuan.luanWriter(out) )
+end
+
+Boot.binary_writer = new_writer
+
+local function new_LuanIO(io)
+	local this = new_LuanIn(io)
+	this.write = io.write
+	this.write_text = io.write_text
+	this.write_binary = io.write_binary
+
+	function this.text_writer()
+		return new_writer( io.text_writer() )
+	end
+
+	function this.binary_writer()
+		return new_writer( io.binary_writer() )
+	end
+
+	return this
+end
+
+local schemes = {}
+LuanTable.setSecurity(schemes,"schemes")
+
+function schemes.null(path)
+	return new_LuanIO( IoLuan.nullIO )
+end
+
+function schemes.string(path)
+	return new_LuanIO( IoLuan.LuanString.new(path) )
+end
+
+function schemes.classpath(path)
+	local cp = IoLuan.classpath(path)
+	return cp and new_LuanIn(cp)
+end
+
+function schemes.luan(path)
+	return schemes.classpath("luan/modules/"..path)
+end
+
+function schemes.stdin(path)
+	local Io = require "luan:Io.luan"
+	return Io.stdin
+end
+
+
+local function new_LuanUrl(io)
+	local this = new_LuanIn(io)
+
+	local function check()
+		io.httpCon or error "must open first"
+	end
+
+	function this.get_header(name)
+		check()
+		return io.httpCon.getHeaderField(name)
+	end
+
+	function this.get_response_code()
+		check()
+		return io.httpCon.getResponseCode()
+	end
+
+	function this.get_response_message()
+		check()
+		return io.httpCon.getResponseMessage()
+	end
+
+	return this
+end
+
+local function url(path,options)
+	return new_LuanUrl( LuanUrl.new(URL.new(path),options) )
+end
+
+function schemes.http(path,options)
+	return url( "http:"..path, options )
+end
+
+function schemes.https(path,options)
+	return url( "https:"..path, options )
+end
+
+local function new_BaseOs(io)
+	local this = new_LuanIO(io)
+	this.wait_for = io.wait_for
+	return this
+end
+
+function schemes.os(path,options)
+	return new_BaseOs( IoLuan.LuanOs.new(path,options) )
+end
+
+function schemes.bash(path,options)
+	return new_BaseOs( IoLuan.LuanBash.new(path,options) )
+end
+
+local function new_LuanFile(io)
+	local this = new_LuanIO(io)
+	this.name = io.file.getName
+	this.is_directory = io.file.isDirectory
+	this.is_file = io.file.isFile
+	this.delete = io.delete
+	this.delete_on_exit = io.file.deleteOnExit
+	this.mkdir = io.mkdir
+	this.last_modified = io.file.lastModified
+	this.set_last_modified = io.set_last_modified
+	this.length = io.file.length
+	this.rename_to = io.rename_to
+	this.link_from = io.link_from
+	this.symlink_from = io.symlink_from
+	this.is_symbolic_link = io.is_symbolic_link
+
+	function this.child(name)
+		return new_LuanFile( io.child(name) )
+	end
+
+	function this.children()
+		local raw = io.children()
+		if raw == nil then
+			return nil
+		end
+		local rtn = {}
+		for _, child in ipairs(raw) do
+			rtn[#rtn+1] = new_LuanFile(child)
+		end
+		return rtn
+	end
+
+	function this.parent()
+		return new_LuanFile( io.parent() )
+	end
+
+	function this.canonical()
+		return new_LuanFile( io.canonical() )
+	end
+
+	function this.create_temp_file(prefix,suffix)
+		return new_LuanFile( io.create_temp_file(prefix,suffix) )
+	end
+
+	return this
+end
+
+function schemes.file(path)
+	return new_LuanFile( IoLuan.LuanFile.new(path) )
+end
+
+Boot.schemes = schemes
+
+
+local function uri(name,options)
+	local scheme, location = match( name, "(?s)^([^:]+):(.*)$" )
+	scheme or error( "invalid Io.uri name '"..name.."', missing scheme" )
+	local opener = schemes[scheme] or error( "invalid scheme '"..scheme.."' in '"..name.."'" )
+	return opener(location,options)
+end
+Boot.uri = uri
+
+
+function Boot.read(uri_str)  -- for PackageLuan.java
+	local u = uri(uri_str)
+	if u==nil or not u.exists() then
+		return nil
+	end
+	return u.read_text()
+end
+
+function Boot.load_file(file)
+	if type(file) == "string" then
+		if not matches(file,":") then
+			file = "file:"..file
+		end
+		local u = uri(file)
+		if u==nil or not u.exists() then
+			return nil
+		end
+		local src = u.read_text()
+		return load(src,file,true)
+	elseif type(file) == "table" and file.read_text ~= nil then
+		local src = file.read_text()
+		local src_file = file.uri_string or file.to_uri_string()
+		return load(src,src_file,true)
+	else
+		error("bad argument, expected string or uri table but got "..type(file))
+	end
+end
+
+
+local error_mt = {}
+
+function error_mt.__to_string(t)
+	return t.java.getLuanStackTraceString()
+end
+
+function Boot.new_error_table(ex)  -- for LuanException.java
+	local this = {}
+	set_metatable(this,error_mt)
+	this.java = ex
+	this.get_message = ex.getMessage
+	this.throw = ex.throwThis
+	this.get_stack_trace_string = ex.getLuanStackTraceString
+	this.get_java_stack_trace_string = ex.getJavaStackTraceString
+	return this
+end
+
+
+return Boot

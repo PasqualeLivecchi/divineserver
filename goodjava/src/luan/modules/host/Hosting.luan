@@ -1,0 +1,107 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local pairs = Luan.pairs or error()
+local set_metatable = Luan.set_metatable or error()
+local Io = require "luan:Io.luan"
+local print = Io.print or error()
+local Rpc = require "luan:Rpc.luan"
+local String = require "luan:String.luan"
+local matches = String.matches or error()
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Hosting"
+
+
+local Hosting = {}
+
+function Hosting.push(domain,password,dir)
+	local my_dir = Io.uri("file:"..dir)
+	my_dir.exists() or error("directory '"..dir.."' not found")
+	my_dir.is_directory() or error("'"..dir.."' is not a directory")
+	local host = Rpc.remote(domain)
+	local tree = host.get(domain,password)
+	if tree == nil then
+		print("creating "..domain)
+		tree = host.create(domain,password)
+	end
+
+	local function process(there_parent,there,here)
+		if here.is_file() then
+			if there == nil or there.checksum ~= here.checksum() then
+				print("copying "..here.to_string())
+				host.copy_file(domain,password,there_parent.path,here.name(),here.read_binary())
+			end
+		elseif here.is_directory() then
+			if here.name() == "local" then
+				return
+			end
+			if there == nil then
+				there = host.mkdir(domain,password,there_parent.path,here.name())
+			end
+			for _, here_child in ipairs(here.children()) do
+				local name = here_child.name()
+				if not matches(name,[[^\.]]) then
+					process(there,there.children[name],here_child)
+					there.children[name] = nil
+				end
+			end
+			for _, there_child in pairs(there.children) do
+				if host.delete_unused(domain,password,there_child.path) then
+					print("deleted "..there_child.name)
+				end
+			end
+		else
+			error "not file or dir"
+		end
+	end
+
+	process( nil, tree, my_dir )
+
+	host.update_handler(domain,password)
+	host.close()
+end
+
+function Hosting.delete(domain,password)
+	local host = Rpc.remote(domain)
+	host.delete(domain,password)
+	host.close()
+end
+
+function Hosting.exists(domain)
+	local host = Rpc.remote(domain)
+	local rtn = host.exists(domain)
+	host.close()
+	return rtn
+end
+
+function Hosting.change_domain(old_domain,new_domain,password)
+	local host = Rpc.remote(new_domain)
+	local rtn = host.change_domain(old_domain,new_domain,password)
+	host.close()
+	return rtn
+end
+
+function Hosting.change_password(domain,old_password,new_password)
+	local host = Rpc.remote(domain)
+	local rtn = host.change_password(domain,old_password,new_password)
+	host.close()
+	return rtn
+end
+
+function Hosting.caller(domain)
+	local host = Rpc.remote(domain)
+	local mt = {}
+	function mt.__index(_,key)
+		return function(...)
+			if key == "close" then
+				return host.close()
+			end
+			return host.call(domain,key,...)
+		end
+	end
+	local t = {}
+	set_metatable(t,mt)
+	return t
+end
+
+return Hosting

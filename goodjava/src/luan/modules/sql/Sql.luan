@@ -1,0 +1,72 @@
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local new_error = Luan.new_error or error()
+local set_metatable = Luan.set_metatable or error()
+local range = Luan.range or error()
+local Database = require "java:luan.modules.sql.Database"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Sql"
+
+
+local Sql = {}
+
+local mt = {}
+
+function mt.__gc(database)
+	if not database.is_closed() then
+		logger.error(database.created)
+		database.close()
+	end
+end
+
+function Sql.database(spec)
+	local database = {}
+	set_metatable(database,mt)
+	local java_database = Database.new(spec)
+	database.java = java_database
+	database.created = new_error "not closed, created:"
+	database.close = java_database.con.close
+	database.is_closed = java_database.con.isClosed
+	database.update = java_database.update
+	database.set = java_database.set
+
+	function database.query(sql,...)
+		local rs = java_database.query(sql,...)
+		local query = {}
+		query.java = rs
+
+		local mt = {}
+		function mt.__index(_,key)
+			local rtn = rs.getObject(key)
+			return not rs.wasNull() and rtn or nil
+		end
+		local result = {}
+		set_metatable(result,mt)
+		function query.results()
+			if rs.isClosed() then
+				return nil
+			end
+			if not rs.next() then
+				rs.close()
+				return nil
+			end
+			return result
+		end
+
+		function query.column_names()
+			local meta = rs.getMetaData()
+			local names = {}
+			for i in range(1,meta.getColumnCount()) do
+				names[i] = meta.getColumnName(i)
+			end
+			return names
+		end
+
+		return query
+	end
+
+	return database
+end
+
+return Sql

@@ -1,0 +1,46 @@
+require "java"
+local BasicLuan = require "java:luan.modules.BasicLuan"
+local LuanParser = require "java:luan.modules.parsers.LuanParser"
+local Boot = require "luan:Boot.luan"
+
+local Luan = {}
+
+local error = Boot.error
+Luan.error = error
+Luan.get_metatable = BasicLuan.get_metatable
+Luan.hash_code = BasicLuan.hash_code
+Luan.ipairs = BasicLuan.ipairs
+local java_load = BasicLuan.load
+local load_file = Boot.load_file
+Luan.load_file = load_file
+Luan.new_error = BasicLuan.new_error
+Luan.pairs = BasicLuan.pairs
+Luan.parse = LuanParser.parse
+Luan.range = BasicLuan.range
+Luan.raw_equal = BasicLuan.raw_equal
+Luan.raw_get = BasicLuan.raw_get
+Luan.raw_len = BasicLuan.raw_len
+Luan.raw_set = BasicLuan.raw_set
+Luan.set_metatable = BasicLuan.set_metatable
+Luan.stringify = BasicLuan.stringify
+Luan.to_string = BasicLuan.to_string
+Luan.type = BasicLuan.type
+Luan.values = BasicLuan.values
+
+local function load(text,source_name,env,persist)
+	return java_load( text, source_name or "load", persist==true, env )
+end
+Luan.load = load
+
+function Luan.do_file(uri)
+	local fn = load_file(uri) or error("file '"..uri.."' not found")
+	return fn()
+end
+
+Luan.VERSION = Luan.do_file "classpath:luan/version.luan"
+
+function Luan.eval(s,source_name,env)
+	return load( "return "..s, source_name or "eval", env )()
+end
+
+return Luan

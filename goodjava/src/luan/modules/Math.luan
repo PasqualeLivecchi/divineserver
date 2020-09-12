@@ -1,0 +1,36 @@
+require "java"
+local MathLuan = require "java:luan.modules.MathLuan"
+local JavaMath = require "java:java.lang.Math"
+local Integer = require "java:java.lang.Integer"
+local Double = require "java:java.lang.Double"
+
+
+local Math = {}
+
+Math.abs = MathLuan.abs
+Math.acos = MathLuan.acos
+Math.asin = MathLuan.asin
+Math.atan = MathLuan.atan
+Math.atan2 = MathLuan.atan2
+Math.ceil = MathLuan.ceil
+Math.cos = MathLuan.cos
+Math.cosh = MathLuan.cosh
+Math.deg = MathLuan.deg
+Math.exp = MathLuan.exp
+Math.floor = MathLuan.floor
+Math.fmod = MathLuan.fmod
+Math.huge = Double.POSITIVE_INFINITY
+Math.log = MathLuan.log
+Math.max = MathLuan.max
+Math.max_integer = Integer.MAX_VALUE
+Math.min = MathLuan.min
+Math.min_integer = Integer.MIN_VALUE
+Math.modf = MathLuan.modf
+Math.pi = JavaMath.PI
+Math.rad = MathLuan.rad
+Math.random = MathLuan.random
+Math.sin = MathLuan.sin
+Math.sqrt = MathLuan.sqrt
+Math.tan = MathLuan.tan
+
+return Math

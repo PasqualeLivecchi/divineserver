@@ -1,0 +1,10 @@
+LUAN_HOME=`pwd`
+
+CLASSPATH=$LUAN_HOME/src
+CLASSPATH=$CLASSPATH:$LUAN_HOME/slf4j/src
+
+for file in $LUAN_HOME/lib/*; do
+	CLASSPATH=$CLASSPATH:$file;
+done
+
+export CLASSPATH

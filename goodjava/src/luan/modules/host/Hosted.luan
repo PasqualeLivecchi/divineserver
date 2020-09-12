@@ -1,0 +1,9 @@
+local Hosted = {}
+
+Hosted.is_hosted = false
+
+function Hosted.postgres_spec()
+	return nil
+end
+
+return Hosted

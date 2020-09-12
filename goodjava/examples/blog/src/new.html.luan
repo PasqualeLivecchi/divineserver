@@ -1,0 +1,41 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local Post = require "site:/lib/Post.luan"
+
+
+return function()
+	local subject = Http.request.parameters.subject
+	local content = Http.request.parameters.content
+	if Http.request.parameters.save ~= nil then
+		local post = Post.new{ subject=subject, content=content }
+		post.save()
+		Http.response.send_redirect("/")
+		return
+	end
+
+	Io.stdout = Http.response.text_writer()
+%>
+<!doctype html>
+<html>
+	<head>
+		<style>
+			@import "/site.css";
+		</style>
+	</head>
+	<body>
+		<h1>Make New Post</h1>
+
+		<form method=post>
+			<p>Subject: <input name=subject size=50 type=text></p>
+			<p><textarea name=content rows=20 cols=90></textarea><br>bbcode works</p>
+			<p>
+				<input type=submit name=save value=Submit>
+			</p>
+		</form>
+
+	</body>
+</html>
+<%
+end

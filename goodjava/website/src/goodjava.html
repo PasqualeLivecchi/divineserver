@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+	<head>
+		<title>The goodjava Library</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<style>
+			@import "site.css";
+		</style>
+	</head>
+	<body>
+		<div small>
+			<a href=".">Luan</a>
+		</div>
+
+		<h1>The goodjava Library</h1>
+
+		<p>The <a href="https://hg.luan.ws/luan/file/default/src/goodjava">goodjava</a> library is independent of Luan.  Luan calls goodjava but goodjava never calls Luan code.  So goodjava can be used as a Java library.  goodjava is included in the Luan jar file.</p>
+
+		<p>As western programming became depraved, it became more and more difficult to find good libraries.  So rather than use modern depraved libraries, I wrote my own.  I will describe the most important libraries.</p>
+
+		<h2>goodjava.logger</h2>
+
+		<p>This includes <a href="https://hg.luan.ws/luan/file/default/src/goodjava/logger">goodjava.logger</a> which replaces <a href="https://logging.apache.org/log4j/1.2/">log4j</a>, and <a href="https://hg.luan.ws/luan/file/default/src/goodjava/logging">goodjava.logging</a> which replaces <a href="http://www.slf4j.org/">slf4j</a>.  You can see <a href="https://hg.luan.ws/luan/file/default/src/goodjava/logger/examples">some examples</a> of how to use my logger.  Configuration is in Java, where it should be.</p>
+
+		<p>slf4j is a typical modern mess.  Just look at <a href="http://www.slf4j.org/apidocs/org/slf4j/Logger.html">slf4j's logger</a> and compare to the interface of <a href="https://hg.luan.ws/luan/file/default/src/goodjava/logging/Logger.java">my logger</a>.  log4j isn't horrible but has significant problems.  This project was abandoned by its author so that he could create a horrible depraved logger called <a href="http://logback.qos.ch/">Logback</a> to fit with his depraved culture.  log4j biggest problem is that it doesn't handle logging separation properly.  It's <a href="https://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/spi/RepositorySelector.html">RepositorySelector</a> is a hack.  goodjava.logger's <a href="https://hg.luan.ws/luan/file/default/src/goodjava/logger/ThreadLocalAppender.java">ThreadLocalAppender</a> solves the problem properly.</p>
+
+		<p>I implemented full bridging with slf4j, both slf4j to goodjava.logging and goodjava.logging to slf4j.  This way my code is completely compatible with depraved modern code.</p>
+
+		<h2>goodjava.parser</h2>
+
+		<p>In computer science, parsing is a big deal.  They make it complicated, of course.  But it shouldn't be.  I developed a new approach to parsing which is implemented <a href="https://hg.luan.ws/luan/file/default/src/goodjava/parser/">here</a>.  It is based on a simple stack of integers that are positions in what is effectively recursive descent parsing.  I use this idea to compile Luan but also to parse <a href="https://hg.luan.ws/luan/file/default/src/goodjava/json/JsonParser.java">JSON</a>, <a href="https://hg.luan.ws/luan/file/default/src/goodjava/lucene/queryparser/GoodQueryParser.java">Lucene queries</a>, <a href="https://hg.luan.ws/luan/file/default/src/goodjava/webserver/RequestParser.java">HTTP requests</a>, <a href="https://hg.luan.ws/luan/file/default/src/luan/modules/parsers/BBCode.java">BBCode</a>, <a href="https://hg.luan.ws/luan/file/default/src/luan/modules/parsers/Css.java">CSS</a>, <a href="https://hg.luan.ws/luan/file/default/src/luan/modules/parsers/Csv.java">CSV</a>, <a href="https://hg.luan.ws/luan/file/default/src/luan/modules/parsers/Html.java">HTML</a>, and other things.</p>
+
+		<p>When I wrote the <a href="https://hg.luan.ws/luan/file/default/src/goodjava/json/JsonParser.java">JSON parser</a>, it worked on the first run.  It is so much simpler than any other JSON parser.  I dare you to look for any JSON parser as simple as this one.  All my other parsers are similar.  My approach to parsing reflects my anti-modern values.  I hate theoretical nonsense and I hate needless complexity.  Think deeply about a problem (like parsing) until you see the essence of it.  Then write clean simple code to solve the problem.</p>
+
+		<h2>goodjava.json</h2>
+
+		<p>Found <a href="https://hg.luan.ws/luan/file/default/src/goodjava/json">here</a>, this lets you parse or create JSON easily.</p>
+
+		<h2>goodjava.xml</h2>
+
+		<p>Yet another case where all existing libraries are horrible, so I wrote <a href="https://hg.luan.ws/luan/file/default/src/goodjava/xml">my own</a>.</p>
+
+		<h2>goodjava.rpc</h2>
+
+		<p>Most RPCs (remote procedure calls) these days use REST which is really absurd because HTTP was never meant for this, so it is inefficient.  So I made a simple socket-based RPC that just uses JSON <a href="https://hg.luan.ws/luan/file/default/src/goodjava/rpc">here</a>.  I use this to manage my luan hosting service.</p>
+
+		<h2>goodjava.lucene.queryparser</h2>
+
+		<p>This is a better implementation of <a href="https://lucene.apache.org/core/4_9_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description">Lucene's QueryParser</a> which has serious defects like only being able to query text fields.  <a href="https://hg.luan.ws/luan/file/default/src/goodjava/lucene/queryparser">My implementation</a> fixes all the defects.</p>
+
+		<h2>goodjava.webserver</h2>
+
+		<p>This is the first part of the library that I wrote.  I wrote it after studying all available java webservers and being horrified by them.  My hatred of modern software and modern culture was fully developed by this time, so I wrote this code intending to violate every rule of modern software, and I am rather pleased with the result.  The code is very clean and simple.  <a href="https://hg.luan.ws/luan/file/default/src/goodjava/webserver/">Here</a> is the source.</p>
+
+		<p>The core interface is <a href="https://hg.luan.ws/luan/file/default/src/goodjava/webserver/Handler.java">Handler</a>.  Note the simplicity.  This takes a <a href="https://hg.luan.ws/luan/file/default/src/goodjava/webserver/Request.java">Request</a> and returns a <a href="https://hg.luan.ws/luan/file/default/src/goodjava/webserver/Response.java">Response</a> (or null if the request wasn't handled). Note how these classes are simple structs with no "get" and "set" methods. They are structs that directly represent the true underlying data in the HTTP protocol. No stupid obscuring layers (like servlets). Keep it raw and simple.</p>
+
+		<p>To write a server, write your own Handler or chain together existing handlers. See this <a href="https://hg.luan.ws/luan/file/default/src/goodjava/webserver/examples/Example.java">example</a>.</p>
+
+		<p>I use this webserver by itself for development, and behind nginx for production. I have only implemented what I need as I need it. I haven't tried to make this a production-ready stand-alone webserver. That is much more work.</p>
+
+	</body>
+</html>

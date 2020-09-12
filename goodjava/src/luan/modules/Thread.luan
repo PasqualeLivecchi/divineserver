@@ -1,0 +1,108 @@
+require "java"
+local ThreadLuan = require "java:luan.modules.ThreadLuan"
+local ReentrantLock = require "java:java.util.concurrent.locks.ReentrantLock"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local set_metatable = Luan.set_metatable or error()
+local Time = require "luan:Time.luan"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Thread"
+
+
+local Thread = {}
+
+Thread.sleep = ThreadLuan.sleep
+
+local function safe(fn)
+	return function()
+		try
+			fn()
+		catch e
+			logger.error(e)
+		end
+	end
+end
+
+function Thread.fork(fn)
+	fn = safe(fn)
+	ThreadLuan.fork(fn)
+end
+
+function Thread.schedule(fn,options)
+	fn = safe(fn)
+	options = options or {}
+	ThreadLuan.schedule(fn,options)
+end
+
+
+local forever = Time.period{years=100}
+
+function Thread.global_callable(name,fns,timeout)
+	timeout = timeout or forever
+	local callable = ThreadLuan.globalCallable(name,fns,timeout)
+	local mt = {}
+	function mt.__index(_,key)
+		return function(...)
+			return callable.call(key,...)
+		end
+	end
+	local tbl = {}
+	set_metatable(tbl,mt)
+	return tbl
+end
+
+Thread.remove_global_callable = ThreadLuan.removeGlobalCallable
+
+function Thread.global_map(name,timeout)
+	timeout = timeout or forever
+
+	local map = {}
+	local fns = {}
+
+	function fns.get(key)
+		return map[key]
+	end
+
+	function fns.put(key,value)
+		map[key] = value
+	end
+
+	local callable = ThreadLuan.globalCallable(name,fns,timeout)
+	local mt = {}
+	function mt.__index(_,key)
+		return callable.call("get",key)
+	end
+	function mt.__new_index(_,key,value)
+		return callable.call("put",key,value)
+	end
+	local tbl = {}
+	set_metatable(tbl,mt)
+	return tbl
+end
+
+
+local default_time_out = Time.period{minutes=10}
+local run_in_lock = ThreadLuan.runInLock
+local get_lock = ThreadLuan.getLock
+
+function Thread.synchronized(fn,key,time_out)
+	time_out = time_out or default_time_out
+	local lock = get_lock(key)
+	return function(...)
+		return run_in_lock(lock,time_out,fn,...)
+	end
+end
+
+
+-- remove
+function Thread.new_synchronizer()
+	local lock = ReentrantLock.new()
+	return function(fn)
+		return function(...)
+			return run_in_lock(lock,default_time_out,fn,...)
+		end
+	end
+end
+
+
+return Thread

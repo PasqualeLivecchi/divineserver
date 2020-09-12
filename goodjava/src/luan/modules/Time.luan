@@ -1,0 +1,114 @@
+-- incomplete, will add as needed
+
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local Math = require "luan:Math.luan"
+local floor = Math.floor or error()
+local Number = require "luan:Number.luan"
+local long = Number.long or error()
+local Table = require "luan:Table.luan"
+local System = require "java:java.lang.System"
+local Calendar = require "java:java.util.Calendar"
+local Date = require "java:java.util.Date"
+local TimeZone = require "java:java.util.TimeZone"
+local SimpleDateFormat = require "java:java.text.SimpleDateFormat"
+
+local Time = {}
+
+function Time.now()
+	return System.currentTimeMillis()
+end
+
+-- add more as needed
+local fields = {
+	year = Calendar.YEAR;
+	month = Calendar.MONTH;
+	day_of_month = Calendar.DAY_OF_MONTH;
+}
+
+function Time.get( time, ... )
+	local cal = Calendar.getInstance()
+	cal.setTimeInMillis(time)
+	local rtn = {}
+	for i, v in ipairs{...} do
+		local fld = fields[v]
+		fld or error("invalid field: "..v)
+		local n = cal.get(fld)
+		if v == "month" then
+			n = n + 1
+		end
+		rtn[i] = n
+	end
+	return Table.unpack(rtn)
+end
+
+-- Time.time_zone      set for other than default
+
+function Time.get_time_zone()
+	local tz = Time.time_zone and TimeZone.getTimeZone(Time.time_zone) or TimeZone.getDefault()
+	return tz.getID().." - "..tz.getDisplayName()
+end
+
+local function set_time_zone(fmt)
+	Time.time_zone and fmt.setTimeZone( TimeZone.getTimeZone(Time.time_zone) )
+end
+
+function Time.format(time,pattern)
+	time = long(time)
+	pattern = pattern or "yyyy-MM-dd HH:mm:ss"
+	local fmt = SimpleDateFormat.new(pattern)
+	set_time_zone(fmt)
+	return fmt.format(Date.new(time))
+end
+
+function Time.on( year, month, day, hour, minute, second, millis )
+	month = month - 1
+	local cal = Calendar.getInstance()
+--	cal.setLenient(false)
+	cal.set( year, month, day, hour or 0, minute or 0, second or 0 )
+	cal.set( Calendar.MILLISECOND, millis or 0 )
+	return cal.getTimeInMillis()
+end
+
+function Time.period( t )
+	local cal = Calendar.getInstance()
+	cal.setTimeZone(TimeZone.getTimeZone("GMT"))
+	local days = t.days or 0
+	days = days + 1
+	cal.set( 1970, 0, days, t.hours or 0, t.minutes or 0, t.seconds or 0 )
+	cal.set( Calendar.MILLISECOND, t.millis or 0 )
+	return cal.getTimeInMillis()
+end
+
+function Time.parse( pattern, source )
+	local fmt = SimpleDateFormat.new(pattern)
+	set_time_zone(fmt)
+	return fmt.parse(source).getTime()
+end
+
+
+local count_times = {
+	days = Time.period{days=1}
+	hours = Time.period{hours=1}
+	minutes = Time.period{minutes=1}
+	seconds = Time.period{seconds=1}
+}
+
+function Time.count( time, ... )
+	local cal = Calendar.getInstance()
+	cal.setTimeInMillis(time)
+	local rtn = {}
+	for i, v in ipairs{...} do
+		local t = count_times[v]
+		t or error("invalid field: "..v)
+		rtn[#rtn+1] = floor(time/t)
+		time = time%t
+	end
+	rtn[#rtn+1] = time
+	return Table.unpack(rtn)
+end
+
+
+return Time

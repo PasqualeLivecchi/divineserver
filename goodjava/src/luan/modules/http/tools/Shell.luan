@@ -1,0 +1,152 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local load = Luan.load or error()
+local to_string = Luan.to_string or error()
+local range = Luan.range or error()
+local Table = require "luan:Table.luan"
+local concat = Table.concat or error()
+local pack = Table.pack or error()
+local unpack = Table.unpack or error()
+local Time = require "luan:Time.luan"
+local Thread = require "luan:Thread.luan"
+local Html = require "luan:Html.luan"
+local html_encode = Html.encode or error()
+local javascript_encode = Html.javascript_encode or error()
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Shell"
+
+
+local Shell = {}
+
+local count = 0
+local new_session = Thread.global_callable("shell.new_session",{next=function()
+	count = count + 1
+	return to_string(count)
+end}).next
+
+local env = {}
+Shell.env = env
+
+local fns = {}
+
+function fns.run(cmd)
+	try
+		local line
+		try
+			line = load("return "..cmd,"<web_shell>",env)
+		catch e
+			line = load(cmd,"<web_shell>",env)
+		end
+		return line()
+	catch e
+--		Io.print_to(Io.stderr,e)
+		return to_string(e)
+	end
+end
+
+local timeout = Time.period{hours=10}
+
+local function get_session(session_id)
+	return Thread.global_callable("shell.session"..session_id,fns,timeout)
+end
+
+function Shell.respond()
+	local cmd = Http.request.parameters.cmd
+	if cmd ~= nil then
+		Http.response.headers["content-type"] = "application/javascript"
+		Io.stdout = Http.response.text_writer()
+		local session_id = Http.request.parameters.session or error()
+		local session = get_session(session_id)
+		local rtn = pack( session.run(cmd) )
+%>
+		var pre = document.querySelector('pre');
+		pre.innerHTML += '\n&gt; <%=javascript_encode(html_encode(cmd))%>';
+<%
+		if rtn.n > 0 then
+			local t = {}
+			for i in range(1,rtn.n) do
+				t[#t+1] = javascript_encode(html_encode(to_string(rtn[i])))
+			end
+%>
+			pre.innerHTML += '\n<%=concat(t,"\t")%>';
+<%
+		end
+%>
+		var input = document.querySelector('input');
+		input.scrollIntoView();
+		input.blur();  input.focus();  // because Chrome is retarded
+<%
+		return
+	end
+	Io.stdout = Http.response.text_writer()
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>Luan Shell</title>
+		<script>
+
+			function ajax(url) {
+				var request = new XMLHttpRequest();
+				request.open( 'GET', url );
+				request.onload = function() {
+					if( request.status !== 200 ) {
+						console.log( 'ajax failed: ' + request.status );
+						return;
+					}
+					//console.log( request.responseText );
+					eval( request.responseText );
+				};
+				request.send();
+			}
+
+			function submitted() {
+				var input = document.querySelector('input');
+				ajax( '?session=<%=new_session()%>&cmd=' + encodeURIComponent(input.value) );
+				input.value = '';
+			}
+
+		</script>
+		<style>
+			body {
+				font-family: sans-serif;
+			}
+			pre {
+				font: inherit;
+				margin-bottom: 0;
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+			td {
+				padding: 0;
+			}
+			td:last-child {
+				width: 100%;
+			}
+			input {
+				width: 100%;
+				font: inherit;
+				outline: none;
+			}
+		</style>
+	</head>
+	<body>
+		<pre>Luan <%=Luan.VERSION%></pre>
+		<form onsubmit="submitted(); return false">
+			<table>
+				<tr>
+					<td>&gt;&nbsp;</td>
+					<td><input name=cmd autofocus></td>
+				</tr>
+			</table>
+		</form>
+	</body>
+</html>
+<%
+end
+
+return Shell

@@ -1,0 +1,5 @@
+require "java"
+local LuanCompiler = require "java:luan.impl.LuanCompiler"
+local Io = require "luan:Io.luan"
+
+Io.stdout.write( LuanCompiler.toJava( Io.stdin.read_text(), "stdin" ) )

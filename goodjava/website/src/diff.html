@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+<head>
+	<title>How Luan differs from Lua</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<style>
+		@import "site.css";
+	</style>
+</head>
+<body>
+
+<div small>
+	<a href=".">Luan</a>
+	/ <a href="docs.html">Documentation</a>
+</div>
+
+<h1><a href="diff.html">How Luan differs from Lua</a></h1>
+
+<p>This document explains how Luan differs from <a href="http://www.lua.org">Lua</a> as described in the <a href="http://www.lua.org/manual/5.3/">Lua 5.3 Reference Manual</a>.</p>
+
+<hr/>
+
+<h2>Contents</h2>
+
+<div contents><a href="#intro">Introduction</a></div>
+
+<div contents>
+	<a href="#basic">Basic Concepts</a>
+	<ul>
+		<li><a href="#types">Values and Types</a></li>
+		<li><a href="#env">Environments</a></li>
+		<li><a href="#error">Error Handling</a></li>
+		<li><a href="#meta">Metatables and Metamethods</a></li>
+		<li><a href="#gc">Garbage Collection</a></li>
+		<li><a href="#coroutines">Coroutines</a></li>
+	</ul>
+</div>
+
+<div contents>
+	<a href="#lang">The Language</a>
+	<ul>
+		<li><a href="#lex">Lexical Conventions</a></li>
+		<li><a href="#vars">Variables</a></li>
+		<li>
+			<a href="#stmt">Statements</a>
+			<ul>
+				<li><a href="#control">Control Structures</a></li>
+				<li><a href="#for">For Statement</a></li>
+				<li><a href="#try">Try Statement</a></li>
+				<li><a href="#logical">Logical Statements</a></li>
+				<li><a href="#template_stmt">Template Statements</a></li>
+			</ul>
+		</li>
+		<li>
+			<a href="#expr">Expressions</a>
+			<ul>
+				<li><a href="#conversions">Coercions and Conversions</a></li>
+				<li><a href="#bit">Bitwise Operators</a></li>
+				<li><a href="#logical_ops">Logical Operators</a></li>
+				<li><a href="#concatenation">Concatenation</a></li>
+				<li><a href="#constructors">Table Constructors</a></li>
+				<li><a href="#fn_calls">Function Calls</a></li>
+			</ul>
+		</li>
+	</ul>
+</div>
+
+<hr/>
+
+<h2 heading><a name="intro" href="#intro">Introduction</a></h2>
+
+<p>Lua is one of the simplest languages available, but Luan is even simpler.  This means Luan removes more than it adds.  Most of what is added is added in the library, not in the language itself.</p>
+
+<p>Luan is implemented in Java and is tightly integrated with Java.  This makes it an excellent scripting language for Java.</p>
+
+<h2 heading><a name="basic" href="#basic">Basic Concepts</a></h2>
+
+<h3 heading><a name="types" href="#types">Values and Types</a></h3>
+
+<p>Luan does not have the Lua <em>thread</em> type.  Luan adds a <em>binary</em> type that Lua doesn't have.  This is because Lua strings can represent binary while Luan strings cannot.</p>
+
+<p>The Luan <em>Nil</em> type is implemented as the Java <em>null</em>.  The Luan <em>Boolean</em> type is implemented as the Java <em>Boolean</em> type.  The Luan <em>Number</em> type is implemented as the Java <em>Number</em> type.  The Luan <em>String</em> type is implemented as the Java <em>String</em> type.  Actual numbers may be any subclass of the Java <em>Number</em> class.</p>
+
+<p>Luan functions may be written in Luan or may be wrappers around native Java methods.  Any Java method may be called as a Luan function.</p>
+
+<p>The Luan <em>java</em> type is a replacement for Lua's <em>userdata</em>.  A Luan <em>java</em> value is nothing more than a Java object that doesn't fall into one of the other recognized types.</p>
+
+<p>The Luan <em>binary</em> type is the Java <em>byte[ ]</em> type which is an array of bytes.</p>
+
+<p>The Luan <em>table</em> type is just like its Lua equivalent, but implemented in Java.</p>
+
+<h3 heading><a name="env" href="#env">Environments</a></h3>
+
+<p>Luan has no global environment at all, no <code>_G</code>.  By default, Luan doesn't define <code>_ENV</code> either, but if you define it as a local table in a chunk, then it acts like it does in Lua.  When <code>_ENV</code> isn't defined, there are no global variables and an unrecognized variable name produces a compile error.</p>
+
+<p>Every module is initialized with one local function: <code>require</code>.  The module then uses this function to get access to whatever else it needs.</p>
+
+<h3 heading><a name="error" href="#error">Error Handling</a></h3>
+
+<p>Luan has the function <code>error</code> but does not have <code>pcall</code> or <code>xpcall</code>.  Luan adds the <a href="#try">try statement</a> instead.  Luan errors are implemented as an error table, not as a message object.</p>
+
+<h3 heading><a name="meta" href="#meta">Metatables and Metamethods</a></h3>
+
+<p>Luan only has metatable for tables, not for other types.</p>
+
+<p>Luan does not support the <b>call</b> metamethod.  There is nothing that one can do with the <b>call</b> metamethod that can't be done more cleanly with closures, so this was left out.</p>
+
+<h3 heading><a name="gc" href="#gc">Garbage Collection</a></h3>
+
+<p>Luan uses Java garbage collection.  Luan has no special garbage collection methods.</p>
+
+<p>Luan does not yet have weak tables but this will be added.</p>
+
+<h3 heading><a name="coroutines" href="#coroutines">Coroutines</a></h3>
+
+<p>Luan does not have coroutines.  Coroutines is a complex concept that isn't needed in a simple language, so it was left out.</p>
+
+<h2 heading><a name="lang" href="#lang">The Language</a></h2>
+
+<h3 heading><a name="lex" href="#lex">Lexical Conventions</a></h3>
+
+<p>Unlike Lua, Luan considers the end of a line to be the end of a statement.  This catches errors and encourages readability.  If you want to continue a statement on another line, you can use a backslash followed by a newline which will be treated as white space.</p>
+
+<p>Luan has exactly the same set of keywords as Lua and has the same other lexical conventions.</p>
+
+<h3 heading><a name="vars" href="#vars">Variables</a></h3>
+
+<p>
+By default, there are no global variables and an undefined variable produces a compile error.  To enable global variables, one must define <code>_ENV</code>.  Avoiding global variables makes it much easier to catch errors at compile time.
+
+<h3 heading><a name="stmt" href="#stmt">Statements</a></h3>
+
+<p>Luan adds the block terminators <b>end_do</b>, <b>end_for</b>, <b>end_function</b>, <b>end_if</b>, <b>end_try</b>, and <b>end_while</b>.  These can be used to end the appropriate block type, but <b>end</b> can also be used to end any block.</p>
+
+<p>Most statements in Luan are the same as Lua.  Only those statements that differ will be listed here.</p>
+
+<h4 heading><a name="control" href="#control">Control Structures</a></h4>
+
+<p>The Luan <b>if</b>, <b>while</b>, and <b>repeat</b> statement are the same as in Lua except that the condition expression must return a boolean value.  Any other value type will produce an error.  This helps catch errors and makes code more readable.</p>
+
+<p>Luan does not have a <b>goto</b> statement.</p>
+
+<h4 heading><a name="for" href="#for">For Statement</a></h4>
+
+<p>Luan has no numeric <b>for</b> statement.  Luan only has generic <b>for</b> statement.  Instead of the numeric <b>for</b> statement, Luan uses the <code>range</code> function in a generic <b>for</b> statement like this:</p>
+
+<pre>
+	for i in range(from,to,step) do <em>block</em> end
+</pre>
+
+<p>The Luan generic <b>for</b> statement is simpler than the Lua version because Luan only uses an expression, not an explist.  So a <b>for</b> statement like:</p>
+
+<pre>
+	for var_1, &middot;&middot;&middot;, var_n in exp do block end
+</pre>
+
+<p>is equivalent to the code:</p>
+
+<pre>
+	do
+		local f = exp
+		while true do
+			local var_1, &middot;&middot;&middot;, var_n = f()
+			if var_1 == nil then break end
+			block
+		end
+	end
+</pre>
+
+
+<h4 heading><a name="try" href="#for">Try Statement</a></h4>
+
+<p>Unlike Lua, Luan has a <b>try</b> statement.  See  <a href="manual.html#try">Try Statement</a> in the Luan Reference Manual.  This also eliminates the need for Lua's <b>pcall</b> function which Luan doesn't have.</p>
+
+<h4 heading><a name="logical" href="#logical">Logical Statements</a></h4>
+
+<p>Unlike Lua, Luan allows <b>or</b> and <b>and</b> expressions to be stand-alone statements.  This is useful in cases like this:</p>
+
+<pre>
+	x==5 or error "x should be 5"
+</pre>
+
+<h4 heading><a name="template_stmt" href="#template_stmt">Template Statements</a></h4>
+
+<p>Template statements are a Luan addition that don't exist in Lua.  See <a href="manual.html#template_stmt">Template Statements</a> in the Luan Reference Manual.</p>
+
+
+<h3 heading><a name="expr" href="#expr">Expressions</a></h3>
+
+<h4 heading><a name="conversions" href="#conversions">Coercions and Conversions</a></h4>
+
+<p>Unlike Lua, Luan does not do automatic conversions of strings to numbers.</p>
+
+<h4 heading><a name="bit" href="#bit">Bitwise Operators</a></h4>
+
+<p>Bitwise operators appear to be a new addition to Lua 5.3 and didn't exist in Lua 5.2.  Luan does not support bitwise operators, but these can be added if there is a need.</p>
+
+<h4 heading><a name="logical_ops" href="#logical_ops">Logical Operators</a></h4>
+
+<p>The only change in Luan is that <b>not</b> must take a boolean argument.  This helps catch errors and makes code more readable.</p>
+
+<h4 heading><a name="concatenation" href="#concatenation">Concatenation</a></h4>
+
+<p>Unlike Lua, Luan converts all concatenation operands to strings.
+
+<h4 heading><a name="constructors" href="#constructors">Table Constructors</a></h4>
+
+<p>Unlike Lua, Luan considers an <b>end_of_line</b> to be a field separator in a table constructor.</p>
+
+<h4 heading><a name="fn_calls" href="#fn_calls">Function Calls</a></h4>
+
+<p>Unlike Lua, Luan does not allow extra non-nil arguments to be passed to a function.  In Luan, this causes an error.  This change helps find coding mistakes that would be very hard to detect otherwise.</p>
+
+<p>Luan does not support Lua's <code>v:name(args)</code> style object-oriented function call.  Object oriented programming is done in Luan using closures, so this feature is not needed.</p>
+
+<p>Luan doesn't support <em>proper tail calls</em>.  Because Java doesn't support this cleanly, this was left out.</p>
+
+</body>
+</html>

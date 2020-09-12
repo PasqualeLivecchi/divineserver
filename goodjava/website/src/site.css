@@ -1,0 +1,39 @@
+
+body {
+	font-family: sans-serif;
+	margin-left: 5%;
+	margin-right: 5%;
+}
+
+a[href] {
+	text-decoration: inherit;
+}
+a[href]:hover {
+	text-decoration: underline;
+}
+a[href]:visited {
+	color: #0000BB;
+}
+
+[small] {
+	font-size: small;
+}
+
+div[link] {
+	margin: 0.5em 0;
+}
+
+
+div[contents] {
+	margin-bottom: 1em;
+}
+ul {
+	margin: 0;
+}
+[heading] {
+	margin-top: 2em;
+}
+
+h4 code {
+	font-size: 1.4em;
+}

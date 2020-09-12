@@ -1,0 +1,95 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local String = require "luan:String.luan"
+local gsub = String.gsub or error()
+local match = String.match or error()
+local matches = String.matches or error()
+local Io = require "luan:Io.luan"
+local uri = Io.uri or error()
+local Package = require "luan:Package.luan"
+local Rpc = require "luan:Rpc.luan"
+local Thread = require "luan:Thread.luan"
+local Http = require "luan:http/Http.luan"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "http/Server"
+
+require "java"
+local JavaServer = require "java:goodjava.webserver.Server"
+local FileHandler = require "java:goodjava.webserver.handlers.FileHandler"
+local DirHandler = require "java:goodjava.webserver.handlers.DirHandler"
+local IndexHandler = require "java:goodjava.webserver.handlers.IndexHandler"
+local ContentTypeHandler = require "java:goodjava.webserver.handlers.ContentTypeHandler"
+local SafeHandler = require "java:goodjava.webserver.handlers.SafeHandler"
+local LogHandler = require "java:goodjava.webserver.handlers.LogHandler"
+local ListHandler = require "java:goodjava.webserver.handlers.ListHandler"
+local LuanHandler = require "java:luan.modules.http.LuanHandler"
+local System = require "java:java.lang.System"
+local NotFound = require "java:luan.modules.http.NotFound"
+
+
+local Server = {}
+
+function Server.init_dir(dir)
+	if not matches(dir,":") then
+		dir = "file:"..dir
+	end
+	dir = gsub(dir,"/$","")  -- remove trailing '/' if any
+	Http.dir = dir
+	Http.is_serving = true
+	function Io.schemes.site(path)
+		local u = uri( dir..path )
+		u.uri_string = "site:"..path
+		return u
+	end
+end
+
+function Server.start(server)
+	try 
+		LuanHandler.start(server)
+	catch e
+--		e.java.printStackTrace();
+		Io.print_to(Io.stderr, e )
+		System.exit(-1)
+	end
+end
+
+function Server.start_rpc(luan_handler)
+	function Rpc.functions.call(domain,fn_name,...)
+		return luan_handler.call_rpc(fn_name,...)
+	end
+	Thread.fork(Rpc.serve)
+end
+
+function Server.serve(dir,port)
+	port = port or 8080
+	Server.init_dir(dir)
+	local dir_path = match(Http.dir,"^file:(.*)$") or error "server dir must be scheme 'file:'"
+	local file_handler = FileHandler.new(dir_path)
+	local dir_handler = DirHandler.new(file_handler)
+	local luan_handler = LuanHandler.new()
+	local not_found_hander = NotFound.new(luan_handler)
+	local handler = ListHandler.new( file_handler, luan_handler )
+	handler = IndexHandler.new(handler)
+	handler = ListHandler.new( handler, dir_handler, not_found_hander )
+	handler = ContentTypeHandler.new(handler)
+	handler = SafeHandler.new(handler)
+	handler = LogHandler.new(handler)
+	local server = JavaServer.new(port,handler)
+	Server.start(server)
+	return server, luan_handler
+end
+
+function Server.serve_for_proxy(dir,port,LuanHandlerClass)
+	port = port or 8080
+	LuanHandlerClass = LuanHandlerClass or LuanHandler
+	Server.init_dir(dir)
+	local luan_handler = LuanHandlerClass.new()
+	local handler = IndexHandler.new(luan_handler)
+	handler = ContentTypeHandler.new(handler)
+	handler = SafeHandler.new(handler)
+	local server = JavaServer.new(port,handler)
+	Server.start(server)
+	return server, luan_handler
+end
+
+return Server

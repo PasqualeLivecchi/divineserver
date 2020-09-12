@@ -1,0 +1,56 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local Time = require "luan:Time.luan"
+local Io = require "luan:Io.luan"
+local Parsers = require "luan:Parsers.luan"
+local bbcode_to_html = Parsers.bbcode_to_html or error()
+local Html = require "luan:Html.luan"
+local html_encode = Html.encode or error()
+local Http = require "luan:http/Http.luan"
+local Post = require "site:/lib/Post.luan"
+
+
+return function()
+	local query = Http.request.parameters.query
+
+	Io.stdout = Http.response.text_writer()
+%>
+<!doctype html>
+<html>
+	<head>
+		<style>
+			@import "/site.css";
+		</style>
+	</head>
+	<body>
+		<h1><a href="/">Demo Blog App</a></h1>
+
+		<form>
+			<input name=query type=text value="<%= query or "" %>">
+			<input type=submit value=Search>
+		</form>
+
+		<div><a href="new.html">Make New Post</a></div>
+
+		<%
+		local posts = query and Post.search(query) or Post.get_all()
+		for _, post in ipairs(posts) do
+			%>
+			<a name="p<%= post.id %>">
+			<h2><%= post.subject %></h2>
+			<p>
+				<%= Time.format(post.date) %>
+				- <a href="edit.html?post=<%= post.id %>">Edit</a>
+				- <a href="delete?post=<%= post.id %>">Delete</a>
+			</p>
+			<pre><%= bbcode_to_html(html_encode(post.content)) %></pre>
+			<hr>
+			<%
+		end
+		%>
+
+	</body>
+</html>
+<%
+end

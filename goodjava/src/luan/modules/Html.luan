@@ -1,0 +1,83 @@
+require "java"
+local HtmlLuan = require "java:luan.modules.HtmlLuan"
+local HtmlParser = require "java:luan.modules.parsers.Html"
+local URLEncoder = require "java:java.net.URLEncoder"
+local URLDecoder = require "java:java.net.URLDecoder"
+local JsonToString = require "java:goodjava.json.JsonToString"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local pairs = Luan.pairs or error()
+local type = Luan.type or error()
+local Io = require "luan:Io.luan"
+local output_of = Io.output_of or error()
+
+
+local Html = {}
+
+Html.decode = HtmlLuan.decode
+Html.encode = HtmlLuan.encode
+Html.javascript_encode = JsonToString.javascriptEncode
+
+local quote = HtmlLuan.quote
+Html.quote = quote
+
+function Html.parse(text,container_tags)
+	text or error "text required"
+	container_tags = container_tags or {"script","style","textarea"}
+	return HtmlParser.toList(text,container_tags)
+end
+
+function Html.url_encode(s)
+	return URLEncoder.encode(s,"UTF-8")
+end
+
+function Html.url_decode(s)
+	return URLDecoder.decode(s,"UTF-8")
+end
+
+local function output_tag(tag)
+	%><<%= tag.name %><%
+	for name, value in pairs(tag.attributes) do
+		%> <%= name %><%
+		if value ~= true then
+			%>=<%= quote(value) %><%
+		end
+	end
+	if tag.is_empty then
+		%>/<%
+	end
+	%>><%
+end
+
+function Html.to_string(list)
+	return output_of( function()
+		for _, obj in ipairs(list) do
+			local tp = type(obj)
+			if tp == "string" then
+				%><%= obj %><%
+			elseif tp == "table" then
+				tp = obj.type
+				if tp == nil then
+					error "no type in element of table for 'Html.to_string'"
+				elseif tp == "comment" then
+					%><!--<%= obj.text %>--><%
+				elseif tp == "cdata" then
+					%><![CDATA[<%= obj.text %>]]><%
+				elseif tp == "tag" then
+					output_tag(obj)
+				elseif tp == "container" then
+					local tag = obj.tag
+					output_tag(tag)
+					%><%= obj.text %></<%= tag.name %>><%
+				else
+					error "invalid element type for 'Html.to_string'"
+				end
+			else
+				error("invalid value ("..tp..") in list for 'Html.to_string'")
+			end
+		end
+	end )
+end
+
+return Html

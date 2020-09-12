@@ -1,0 +1,19 @@
+require "java"
+local BinaryLuan = require "java:luan.modules.BinaryLuan"
+local Base64 = require "java:java.util.Base64"
+local MessageDigest = require "java:java.security.MessageDigest"
+
+
+local Binary = {}
+
+Binary.base64_decode = Base64.getDecoder().decode
+Binary.base64_encode = Base64.getEncoder().encodeToString
+Binary.binary = BinaryLuan.binary
+Binary.byte = BinaryLuan.byte_
+Binary.to_string = BinaryLuan.to_string
+
+function Binary.digest_message(algorithm,input)
+	return MessageDigest.getInstance(algorithm).digest(input)
+end
+
+return Binary

@@ -1,0 +1,39 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local stringify = Luan.stringify or error()
+local Lucene = require "luan:lucene/Lucene.luan"
+local Io = require "luan:Io.luan"
+local Hosted = require "luan:host/Hosted.luan"
+local Time = require "luan:Time.luan"
+local Thread = require "luan:Thread.luan"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Db"
+
+
+local postgres_spec = Hosted.postgres_spec()
+--logger.info(stringify(postgres_spec))
+
+local function completer(doc)
+	return doc
+end
+
+local dir = Io.uri("site:/private/local/lucene")
+local Db = Lucene.index( dir, {
+	default_type = Lucene.type.english
+	default_fields = {"subject","content"}
+	completer = completer
+	postgres_spec = postgres_spec
+} )
+
+--	this is how you index a field
+--	db.indexed_fields.post_date = Lucene.type.long
+
+Db.restore_from_postgres()
+Db.update{
+	[1] = function()
+		logger.info "update"
+	end
+}
+Thread.schedule( Db.check, { delay=0, repeating_delay=Time.period{hours=1}, id="blog-db-check" } )
+
+return Db

@@ -1,0 +1,183 @@
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local pairs = Luan.pairs or error()
+local type = Luan.type or error()
+local Io = require "luan:Io.luan"
+local Html = require "luan:Html.luan"
+local Table = require "luan:Table.luan"
+local clear = Table.clear or error()
+local java_to_table_deep = Table.java_to_table_deep or error()
+local Package = require "luan:Package.luan"
+local String = require "luan:String.luan"
+local lower = String.lower or error()
+local matches = String.matches or error()
+local trim = String.trim or error()
+local Boot = require "luan:Boot.luan"
+local LuanJava = require "java:luan.Luan"
+local Request = require "java:goodjava.webserver.Request"
+local Response = require "java:goodjava.webserver.Response"
+local ResponseOutputStream = require "java:goodjava.webserver.ResponseOutputStream"
+local Status = require "java:goodjava.webserver.Status"
+local OutputStreamWriter = require "java:java.io.OutputStreamWriter"
+local HashMap = require "java:java.util.HashMap"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Http"
+
+
+local Http = {}
+
+local old_java_to_table_shallow = Table.java_to_table_shallow or error()
+
+local function java_to_table_shallow(obj)
+	if type(obj)=="java" and obj.instanceof(Request.MultipartFile) then
+		return {
+			filename = obj.filename
+			content_type = obj.contentType
+			content = obj.content
+		}
+	end
+	return old_java_to_table_shallow(obj)
+end
+
+function Http.new_request(java)
+	local this = {}
+	Http.request = this
+	if java == nil then
+		this.method = "GET"
+		this.scheme = "http"
+		this.headers = {}
+		this.parameters = {}
+		this.cookies = {}
+	else
+		this.java = java
+		this.raw_head = java.rawHead or error()
+		this.body = java.body
+		this.method = java.method or error()
+		this.raw_path = java.rawPath or error()
+		this.original_path = java.originalPath or error()
+		this.path = java.path or error()
+		this.protocol = java.protocol or error()
+		this.scheme = java.scheme or error()
+		this.headers = java_to_table_deep(java.headers)
+		this.parameters = java_to_table_deep(java.parameters,java_to_table_shallow)
+		this.cookies = java_to_table_deep(java.cookies)
+	end
+
+	function this.url()
+		return this.scheme.."://"..this.headers["host"]..this.raw_path
+	end
+
+	return this
+end
+
+local STATUS = {
+	OK = 200
+	MOVED_PERMANENTLY = 301
+	FOUND = 302
+	NOT_FOUND = 404
+	-- add more as needed
+}
+Http.STATUS = STATUS
+
+function Http.new_response()
+	local this = {}
+	Http.response = this
+
+	function this.reset()
+		this.java = Response.new()
+		this.headers = {}
+		this.status = STATUS.OK
+		this.writer = nil
+	end
+
+	this.reset()
+
+	function this.send_redirect(location)
+		this.status = STATUS.FOUND
+		this.headers["location"] = location
+	end
+
+	function this.send_error(status,msg)
+		this.reset()
+		this.status = status
+		if msg ~= nil then
+			this.headers["content-type"] = "text/plain; charset=utf-8"
+			local writer = this.text_writer()
+			writer.write(msg)
+		end
+	end
+
+	function this.set_cookie(name,value,attributes)
+		attributes = attributes or {}
+		attributes["Path"] = attributes["Path"] or "/"
+		local attrMap = HashMap.new()
+		for attr_name, attr_value in pairs(attributes) do
+			type(attr_name)=="string" or "cookie attribute name must be string"
+			type(attr_value)=="string" or "cookie attribute value must be string"
+			attrMap.put(attr_name,attr_value)
+		end
+		this.java.setCookie(name,value,attrMap)
+	end
+
+	function this.set_persistent_cookie(name,value,attributes)
+		attributes = attributes or {}
+		attributes["Max-Age"] = "10000000"
+		this.set_cookie(name,value,attributes)
+	end
+
+	function this.remove_cookie(name,attributes)
+		attributes = attributes or {}
+		attributes["Max-Age"] = "0"
+		this.set_cookie(name,"delete",attributes)
+	end
+
+	function this.text_writer()
+		this.writer and "writer already set"
+		this.writer = ResponseOutputStream.new(this.java)
+		this.writer = OutputStreamWriter.new(this.writer)
+		return Boot.text_writer(this.writer)
+	end
+
+	function this.binary_writer()
+		this.writer and "writer already set"
+		this.writer = ResponseOutputStream.new(this.java)
+		return Boot.binary_writer(this.writer)
+	end
+
+	return this
+end
+
+function Http.finish()  -- called only from java
+	local response = Http.response or error()
+	local java = response.java or error()
+	java.status = Status.getStatus(response.status)
+	for name, value in pairs(response.headers) do
+		type(name)=="string" or "header name must be string"
+		name = lower(name)
+		value = LuanJava.toJava(value)
+		java.headers.put(name,value)
+	end
+	response.writer and response.writer.close()
+	return java
+end
+
+function Http.error_priority(e)
+	return "error"
+end
+
+function Http.handle_error(java_request,e)
+	Http.new_request(java_request)
+	local call = Http.error_priority(e)
+	local err = e.get_stack_trace_string()
+	logger[call](err.."\n"..trim(java_request.rawHead).."\n")
+	local msg = "Internel Server Error\n\n"..err
+	return Response.errorResponse( Status.INTERNAL_SERVER_ERROR, msg )
+end
+
+Http.domain = nil  -- set in domain specific cases
+
+Http.is_serving = false
+
+return Http

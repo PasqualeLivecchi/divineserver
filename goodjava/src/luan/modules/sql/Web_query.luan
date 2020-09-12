@@ -1,0 +1,137 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local stringify = Luan.stringify or error()
+local to_string = Luan.to_string or error()
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local Html = require "luan:Html.luan"
+local html_encode = Html.encode or error()
+local Sql = require "luan:sql/Sql.luan"
+
+
+local Web_query = {}
+
+local function style()
+%>
+			body {
+				font-family: sans-serif;
+				margin: 2em 5%;
+			}
+			h2 {
+				margin-bottom: .5em;
+			}
+			input, textarea {
+				margin-top: 1em;
+				font: inherit;
+			}
+			input[type="submit"] {
+				cursor: pointer;
+				padding: .5em;
+				border-radius: 4px;
+			}
+<%
+end
+
+local function form()
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>SQL</title>
+		<style>
+<%			style() %>
+		</style>
+	</head>
+	<body>
+		<h2>SQL Query</h2>
+		<form>
+			<div>
+				<textarea name="query" cols=80 rows=10 autofocus></textarea>
+			</div>
+			<div>
+				<input type="submit">
+			</div>
+		</form>
+	</body>
+</html>
+<%
+end
+
+local function result(db_spec)
+	local query_str = Http.request.parameters.query
+	local db = Sql.database(db_spec)
+	local query = db.query(query_str)
+	local cols = query.column_names()
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>SQL</title>
+		<style>
+<%			style() %>
+			table {
+				border-collapse: collapse;
+				font-size: smaller;
+			}
+			th, td {
+				text-align: left;
+				padding: .5em;
+				border: solid 1px #ddd;
+			}
+			pre {
+				font: inherit;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>SQL Results</h2>
+		<p><b><pre><%=html_encode(query_str)%></pre></b></p>
+		<table>
+			<tr>
+<%
+			for _, col in ipairs(cols) do
+%>
+				<th><%=col%></th>
+<%
+			end
+%>
+			</tr>
+<%
+		for result in query.results do
+%>
+			<tr>
+<%
+			for _, col in ipairs(cols) do
+%>
+				<td><%=html_encode(to_string(result[col]))%></td>
+<%
+			end
+%>
+			</tr>
+<%
+		end
+%>
+		</table>
+	</body>
+</html>
+<%
+	db.close()
+end
+
+function Web_query.of(db_spec)
+	db_spec or error "db_spec is nil"
+
+	return function()
+		Io.stdout = Http.response.text_writer()
+		local query = Http.request.parameters.query
+		if Http.request.parameters.query ~= nil then
+			result(db_spec)
+		else
+			form()
+		end
+	end
+
+end
+
+return Web_query

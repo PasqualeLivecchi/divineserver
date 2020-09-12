@@ -1,0 +1,39 @@
+require "java"
+local BBCode = require "java:luan.modules.parsers.BBCode"
+local Csv = require "java:luan.modules.parsers.Csv"
+local Theme = require "java:luan.modules.parsers.Theme"
+local Xml = require "java:luan.modules.parsers.Xml"
+local XmlElement = require "java:goodjava.xml.XmlElement"
+local BasicLuan = require "java:luan.modules.BasicLuan"
+
+
+local Parsers = {}
+
+Parsers.bbcode_to_html = BBCode.toHtml
+Parsers.bbcode_to_text = BBCode.toText
+Parsers.csv_to_list = Csv.toList
+Parsers.json_string = BasicLuan.json_string
+Parsers.theme_to_luan = Theme.toLuan
+Parsers.xml_encode = XmlElement.encode
+Parsers.xml_parse = Xml.parse
+Parsers.xml_string = Xml.toString
+
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local type = Luan.type or error()
+local Table = require "luan:Table.luan"
+local java_to_table_deep = Table.java_to_table_deep or error()
+local JsonParser = require "java:goodjava.json.JsonParser"
+
+-- converts json string to luan object
+function Parsers.json_parse(s)
+	local obj = JsonParser.parse(s)
+	return type(obj)=="java" and java_to_table_deep(obj) or obj
+end
+
+-- tmp
+function Parsers.json_compressed_string(obj)
+	return Parsers.json_string(obj,{compressed=true})
+end
+
+return Parsers

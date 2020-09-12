@@ -1,0 +1,191 @@
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local type = Luan.type or error()
+local ipairs = Luan.ipairs or error()
+local Io = require "luan:Io.luan"
+local Rpc = require "luan:Rpc.luan"
+local Thread = require "luan:Thread.luan"
+local String = require "luan:String.luan"
+local regex_quote = String.regex_quote or error()
+local lower = String.lower or error()
+local matches = String.matches or error()
+local Hosted = require "luan:host/Hosted.luan"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "main"
+local WebHandler = Hosted.WebHandler or error()
+local Util = require "classpath:luan/host/Util.luan"
+local read_password = Util.read_password or error()
+local set_password = Util.set_password or error()
+local set_postgres_password = Util.set_postgres_password or error()
+local check_postgres_password = Util.check_postgres_password or error()
+
+
+local sites_dir = Io.schemes.file(Hosted.sites_dir)
+
+sites_dir.mkdir()
+
+local function delete_unused(file)
+	if file.is_directory() then
+		if file.name() == "local" then
+			return false
+		end
+		local all_deleted = true
+		for _,child in ipairs(file.children()) do
+			all_deleted = delete_unused(child) and all_deleted
+		end
+		if not all_deleted then
+			return false
+		end
+	end
+	file.delete()
+	return true
+end
+
+
+local fns = Rpc.functions
+
+local function get_dir(domain,password)
+	type(domain)=="string" or error()
+	type(password)=="string" or error()
+	domain = lower(domain)
+	local dir = sites_dir.child(domain)
+	if dir.exists() then
+		local pwd = read_password(domain)
+		if pwd ~= password then
+			error "wrong password"
+		end
+		return dir.child("site")
+	else
+		return nil
+	end
+end
+
+function fns.get(domain,password)
+	local site_dir = get_dir(domain,password)
+	if site_dir == nil then
+		return nil
+	end
+
+	local children, file_info
+
+	function children(dir)
+		if dir.name() == "local" then
+			return {}
+		end
+		local rtn = {}
+		for _,child in ipairs(dir.children()) do
+			local info = file_info(child)
+			if info ~= nil then
+				rtn[info.name] = info
+			end
+		end
+		return rtn
+	end
+
+	function file_info(file)
+		local info = { name = file.name(), path = file.to_string() }
+		if file.is_directory() then
+			info.children = children(file)
+		elseif file.is_file() then
+			info.checksum = file.checksum()
+		else
+			return nil
+		end
+		return info
+	end
+
+	return file_info(site_dir)
+end
+
+function fns.create(domain,password)
+	type(domain)=="string" or error()
+	type(password)=="string" or error()
+	domain = lower(domain)
+	local dir = sites_dir.child(domain)
+	dir.exists() and error "already exists"
+	check_postgres_password(domain,password)
+	dir.mkdir()
+	set_password(domain,password)
+	dir = dir.child("site")
+	dir.mkdir()
+	return { name = dir.name(), path = dir.to_string(), children = {} }
+end
+
+local function security(site_dir,file)
+	matches( file.to_string(), "^"..regex_quote(site_dir.to_string()) ) or error "security violation"
+end
+
+function fns.copy_file(domain,password,dir,name,content)
+	local site_dir = get_dir(domain,password)
+	site_dir or error "domain not found"
+	local file = Io.schemes.file(dir).child(name)
+	security(site_dir,file)
+	file.write(content)
+end
+
+function fns.mkdir(domain,password,dir,name)
+	local site_dir = get_dir(domain,password)
+	site_dir or error "domain not found"
+	local file = Io.schemes.file(dir).child(name)
+	security(site_dir,file)
+	file.mkdir()
+	return { name = file.name(), path = file.to_string(), children = {} }
+end
+
+function fns.delete_unused(domain,password,path)
+	local site_dir = get_dir(domain,password)
+	site_dir or error "domain not found"
+	local file = Io.schemes.file(path)
+	security(site_dir,file)
+	return delete_unused(file)
+end
+
+function fns.update_handler(domain,password)
+	local site_dir = get_dir(domain,password)
+	site_dir or error "domain not found"
+	domain = lower(domain)
+	WebHandler.removeHandler(domain)
+	WebHandler.loadHandler(domain)
+end
+
+function fns.delete(domain,password)
+	local site_dir = get_dir(domain,password)
+	site_dir or error "domain not found"
+	site_dir.parent().delete()
+	domain = lower(domain)
+	WebHandler.removeHandler(domain)
+end
+
+function fns.exists(domain)
+	type(domain)=="string" or error()
+	domain = lower(domain)
+	return sites_dir.child(domain).exists()
+end
+
+function fns.change_domain(old_domain,new_domain,password)
+	local old_dir = get_dir(old_domain,password)
+	old_dir or error "domain not found"
+	old_dir = old_dir.parent()
+	type(new_domain)=="string" or error()
+	new_domain = lower(new_domain)
+	local new_dir = sites_dir.child(new_domain)
+	new_dir.exists() and error "new_domain already exists"
+	WebHandler.removeHandler(old_domain)
+	old_dir.rename_to(new_dir.to_string())
+	WebHandler.removeHandler(old_domain)
+	WebHandler.loadHandler(new_domain)
+end
+
+function fns.change_password(domain,old_password,new_password)
+	local site_dir = get_dir(domain,old_password)
+	site_dir or error "domain not found"
+	set_password(domain,new_password)
+	set_postgres_password(domain,new_password)
+	WebHandler.removeHandler(domain)
+	WebHandler.loadHandler(domain)
+end
+
+fns.call = WebHandler.callSite
+
+Thread.fork(Rpc.serve)

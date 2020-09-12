@@ -1,0 +1,100 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local load = Luan.load or error()
+local Io = require "luan:Io.luan"
+local print = Io.print or error()
+local String = require "luan:String.luan"
+local gmatch = String.gmatch or error()
+local Http = require "luan:http/Http.luan"
+
+
+local Run = {}
+
+local function lines(s)
+	local matcher = gmatch(s,"([^\n]*)\n|([^\n]+)$")
+	return function()
+		local m1, m2 = matcher()
+		return m1 or m2
+	end
+end
+
+local function print_with_line_numbers(s)
+	local i = 1
+	for line in lines(s) do
+		print(i,line)
+		i = i + 1
+	end
+end
+
+local function form() %>
+<!doctype html>
+<html>
+	<head>
+		<title>Run Luan Code</title>
+		<style>
+			body {
+				font-family: sans-serif;
+				text-align: center;
+			}
+			textarea {
+				font: inherit;
+			}
+			input[type="submit"] {
+				margin-top: .3em;
+				color: white;
+				background: #337ab7;
+				border-color: #337ab7;
+				font: inherit;
+				padding: .5em;
+				border-radius: 4px;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>Run Luan Code</h2>
+		<form method="post">
+			<input type="hidden" name="content_type" value="text/plain; charset=utf-8" />
+			<div>
+				<textarea name="code" rows="20" cols="90" autofocus></textarea>
+			</div>
+			<div>
+				<input type="submit" value="Execute Luan Code"/>
+			</div>
+		</form>
+	</body>
+</html>
+<% end
+
+function Run.run(code,source_name)
+	try
+		local run = load(code,source_name)
+		run()
+		return true
+	catch e
+		Http.response.reset()
+		Http.response.headers["content-type"] = "text/plain; charset=utf-8"
+		Io.stdout = Http.response.text_writer()
+		print(e)
+		print()
+		print()
+		print_with_line_numbers(code)
+		return false
+	end
+end
+
+function Run.respond()
+	local content_type = Http.request.parameters.content_type
+	if content_type ~= nil then
+		Http.response.headers["content-type"] = content_type
+	end
+	Io.stdout = Http.response.text_writer()
+	local code = Http.request.parameters.code
+	if code == nil then
+		form()
+		return
+	end
+	Run.run(code,"<web_run>")
+end
+
+return Run

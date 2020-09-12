@@ -1,0 +1,13 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local String = require "luan:String.luan"
+local to_number = String.to_number or error()
+local Http = require "luan:http/Http.luan"
+local Post = require "site:/lib/Post.luan"
+
+
+return function()
+	local post_id = to_number(Http.request.parameters.post) or error()
+	Post.delete_by_id(post_id)
+	Http.response.send_redirect("/")
+end

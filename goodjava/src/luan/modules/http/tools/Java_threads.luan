@@ -1,0 +1,57 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local Io = require "luan:Io.luan"
+local Time = require "luan:Time.luan"
+local Table = require "luan:Table.luan"
+local to_table = Table.java_to_table_shallow or error()
+local Http = require "luan:http/Http.luan"
+require "java"
+local Thread = require "java:java.lang.Thread"
+
+
+local Java_threads = {}
+
+function Java_threads.respond()
+	Io.stdout = Http.response.text_writer()
+
+	local threads = Thread.getAllStackTraces()
+	local threads = {}
+	for thread, trace in Luan.pairs(to_table(Thread.getAllStackTraces())) do
+		threads[#threads+1] = {
+			trace = trace
+			string = thread.toString()
+			state = thread.getState()
+		}
+	end
+%>
+<!doctype html>
+<html>
+	<body>
+		<h1>Java Threads</h1>
+		<p><%=Http.request.headers["host"]%> - <%=Time.format(Time.now())%></p>
+		<%
+		local count = 0
+		for _, thread in Luan.ipairs(threads) do
+			%>
+			<p><%=thread.string%> <%=thread.state%>
+			<ul>
+			<%
+			local trace = thread.trace
+			for i in Luan.range( 0 , trace.length - 1 ) do
+				local line = trace[i].toString()
+				%><li><%=line%></li><%
+			end
+			%>
+			</ul></p>
+			<%
+			count = count + 1
+		end
+		%>
+		<p><%=count%> threads found</p>
+
+	</body>
+</html>
+<%
+end
+
+return Java_threads

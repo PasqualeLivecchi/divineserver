@@ -1,0 +1,6 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local Web_search = require "luan:lucene/Web_search.luan"
+local Db = require "site:/lib/Db.luan"
+
+return Web_search.of(Db)

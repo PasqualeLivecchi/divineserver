@@ -1,0 +1,14 @@
+local Luan = require "luan:Luan.luan"
+local Io = require "luan:Io.luan"
+local Server = require "luan:http/Server.luan"
+
+
+if #{...} ~= 2 then
+	Io.stderr.write "usage: luan luan:http/test.luan dir test-URI\n"
+	return
+end
+
+local dir, test = ...
+
+Server.init_dir(dir)
+Luan.do_file(test)

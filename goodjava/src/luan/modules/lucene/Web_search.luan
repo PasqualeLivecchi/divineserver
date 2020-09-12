@@ -1,0 +1,244 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local pairs = Luan.pairs or error()
+local ipairs = Luan.ipairs or error()
+local range = Luan.range or error()
+local stringify = Luan.stringify or error()
+local eval = Luan.eval or error()
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local String = require "luan:String.luan"
+local string_to_number = String.to_number or error()
+local Html = require "luan:Html.luan"
+local html_encode = Html.encode or error()
+local Number = require "luan:Number.luan"
+
+
+local Web_search = {}
+
+local function style()
+%>
+			body {
+				font-family: sans-serif;
+				margin: 2em 5%;
+			}
+			h2 {
+				margin-bottom: .5em;
+			}
+			label {
+				text-align: right;
+				min-width: 6em;
+				display: inline-block;
+				margin-right: .5em;
+			}
+			input, textarea {
+				margin-top: 1em;
+				font: inherit;
+			}
+			span[tip] {
+				color: #888;
+				font-size: smaller;
+			}
+			input[type="submit"] {
+				cursor: pointer;
+				padding: .5em;
+				border-radius: 4px;
+			}
+<%
+end
+
+local function form()
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>Lucene</title>
+		<style>
+<%			style() %>
+		</style>
+	</head>
+	<body>
+		<h2>Lucene Query</h2>
+		<form>
+			<div>
+				<label>Query:</label>
+				<input type=text name="query" size="80" autofocus>
+			</div>
+			<div>
+				<label></label>
+				<span tip>Query examples: <i>type:user</i> or <i>+type:user +name:Joe"</i></span>
+			</div>
+			<div>
+				<label>Max Rows:</label>
+				<input type=text name="rows" value="100" size="3" maxlength="5">
+			</div>
+			<div>
+				<label>Sort:</label>
+				<input type=text name="sort" size="60">
+			</div>
+			<div>
+				<label></label>
+				<span tip>Sort examples: <i>name, id</i></span>
+			</div>
+			<div>
+				<label></label>
+				<input type="submit">
+			</div>
+		</form>
+	</body>
+</html>
+<%
+end
+
+
+local function index_of(tbl,val)
+	for i, v in ipairs(tbl) do
+		if v == val then
+			return i
+		end
+	end
+	local n = #tbl + 1
+	tbl[n] = val
+	return n
+end
+
+local function result(index)
+	local query = Http.request.parameters.query
+	local rows = string_to_number(Http.request.parameters.rows)
+	local sort = Http.request.parameters.sort
+	local results = index.search(query,1,rows,{sort=sort})
+	local headers = {}
+	local table = {}
+	for _, doc in ipairs(results) do
+		local row = {}
+		for field, value in pairs(doc) do
+			row[index_of(headers,field)] = value
+		end
+		row.doc = doc
+		table[#table+1] = row
+	end
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>Lucene</title>
+		<style>
+<%			style() %>
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				font-size: smaller;
+			}
+			th, td {
+				text-align: left;
+				padding: .5em;
+				border: solid 1px #ddd;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>Lucene Results</h2>
+		<p><label>Query:</label> <b><%=html_encode(query)%></b></p>
+		<p><label>Sort:</label> <b><%=html_encode(sort)%></b></p>
+		<table>
+			<tr>
+				<th></th>
+<%				for _, header in ipairs(headers) do %>
+					<th><%=header%></th>
+<%				end %>
+			</tr>
+<%
+			for i, row in ipairs(table) do
+				local id = row.doc.id
+%>
+				<tr>
+					<td>
+						<a href="?id=<%=id%>"><%=i%></a>
+					</td>
+<%
+					for col in range(1, #headers) do
+						local val = row[col]
+						%><td><%= val and stringify(val) or "" %></td><%
+					end
+%>
+				</tr>
+<%			end %>
+		</table>
+	</body>
+</html>
+<%
+end
+
+
+local function edit(index)
+	local id = string_to_number(Http.request.parameters.id)
+	local doc = index.get_document("id:"..id)
+	doc = stringify(doc,{strict=true,number_types=true})
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>Lucene</title>
+		<style>
+<%			style() %>
+		</style>
+	</head>
+	<body>
+		<h2>Lucene Edit</h2>
+		<form action="?" method=post>
+			<input hidden name=id value="<%=id%>">
+			<div><textarea name="doc" rows="20" cols="90" autofocus><%=html_encode(doc)%></textarea></div>
+			<div><input type="submit" value="Update"></div>
+		</form>
+	</body>
+</html>
+<%
+end
+
+
+local function update(index)
+	local doc = Http.request.parameters.doc
+	doc = eval( doc, "lucene", Number )
+	if doc == nil then
+		local id = Http.request.parameters.id
+		index.delete("id:"..id)
+	else
+		index.save(doc)
+	end
+%>
+<!doctype html>
+<html>
+	<head>
+		<title>Lucene</title>
+		<style>
+<%			style() %>
+		</style>
+	</head>
+	<body>
+		<h2>Lucene Updated</h2>
+	</body>
+</html>
+<%
+end
+
+
+function Web_search.of(index)
+	index or error "index is nil"
+
+	return function()
+		Io.stdout = Http.response.text_writer()
+		local query = Http.request.parameters.query
+		if Http.request.parameters.query ~= nil then
+			result(index)
+		elseif Http.request.parameters.doc ~= nil then
+			update(index)
+		elseif Http.request.parameters.id ~= nil then
+			edit(index)
+		else
+			form()
+		end
+	end
+
+end
+
+return Web_search

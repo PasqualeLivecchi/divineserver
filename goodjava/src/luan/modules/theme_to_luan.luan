@@ -1,0 +1,4 @@
+local Io = require "luan:Io.luan"
+local Parsers = require "luan:Parsers.luan"
+
+Io.stdout.write( Parsers.theme_to_luan( Io.stdin.read_text(), "stdin" ) )

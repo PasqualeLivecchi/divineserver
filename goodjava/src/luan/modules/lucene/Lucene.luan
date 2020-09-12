@@ -1,0 +1,219 @@
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local ipairs = Luan.ipairs or error()
+local pairs = Luan.pairs or error()
+local type = Luan.type or error()
+local set_metatable = Luan.set_metatable or error()
+local Boot = require "luan:Boot.luan"
+local Html = require "luan:Html.luan"
+local Number = require "luan:Number.luan"
+local integer = Number.integer or error()
+local Io = require "luan:Io.luan"
+local uri = Io.uri or error()
+local String = require "luan:String.luan"
+local matches = String.matches or error()
+local Rpc = require "luan:Rpc.luan"
+local LuceneIndex = require "java:luan.modules.lucene.LuceneIndex"
+local NumberFieldParser = require "java:goodjava.lucene.queryparser.NumberFieldParser"
+local GoodQueryParser = require "java:goodjava.lucene.queryparser.GoodQueryParser"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "Lucene"
+
+
+local Lucene = {}
+
+Lucene.type = {
+	english = LuceneIndex.ENGLISH_FIELD_PARSER
+	string = LuceneIndex.STRING_FIELD_PARSER
+--	lowercase = LuceneIndex.LOWERCASE_FIELD_PARSER
+	integer = NumberFieldParser.INT
+	long = NumberFieldParser.LONG
+	double = NumberFieldParser.DOUBLE
+}
+
+Lucene.quote = GoodQueryParser.quote
+
+function Lucene.index(index_dir,options)
+	type(index_dir)=="table" or error "index_dir must be table"
+	index_dir.to_uri_string and matches(index_dir.to_uri_string(),"^file:") or error "must be file"
+	options = options or {}
+	local index = {}
+	index.dir = index_dir
+	index.completer = options.completer
+	options.completer = nil
+	local java_index = LuceneIndex.getLuceneIndex(index_dir.java.file,options)
+	index.java = java_index
+
+	index.indexed_fields = {}
+	local mt = {}
+	set_metatable(index.indexed_fields,mt)
+	function mt.__index(_,key)
+		return java_index.getIndexedFieldParser(key)
+	end
+	function mt.__new_index(_,key,value)
+		return java_index.setIndexedFieldParser(key,value)
+	end
+
+	index.to_string = java_index.to_string
+	index.snapshot = java_index.snapshot
+	index.advanced_search = java_index.advanced_search
+	index.search_in_transaction = java_index.search_in_transaction
+	index.delete_all = java_index.delete_all
+	index.delete = java_index.delete
+	--index.save = java_index.save
+	index.run_in_transaction = java_index.run_in_transaction
+	index.ensure_open = java_index.ensure_open
+	index.next_id = java_index.nextId
+	index.highlighter = java_index.highlighter
+	index.indexed_only_fields = java_index.indexed_only_fields
+	index.count_tokens = java_index.count_tokens
+	--index.close = java_index.close
+
+	local java_save = java_index.save
+	function index.save(doc,boosts)
+		java_save(index.completer,doc,boosts)
+	end
+
+	index.has_postgres_backup = java_index.hasPostgresBackup()
+	index.rebuild_postgres_backup = java_index.rebuild_postgres_backup
+	function index.restore_from_postgres()
+		java_index.restore_from_postgres(index.completer)
+	end
+	function index.force_restore_from_postgres()
+		java_index.force_restore_from_postgres(index.completer)
+	end
+	index.check = java_index.check
+
+	function index.search( query, from, to, options )
+		from or error "missing 'from' parameter"
+		to or error "missing 'to' parameter"
+		options = options or {}
+		local explain_fld = options.explain
+		local score_fld = options.score
+		local results = {}
+		local function fn(i,doc_fn,score)
+			if i >= from then
+				local doc
+				if explain_fld == nil then
+					doc = doc_fn()
+				else
+					local explanation
+					doc, explanation = doc_fn("explain")
+					doc[explain_fld] = explanation.toString()
+				end
+				if score_fld ~= nil then
+					doc[score_fld] = score
+				end
+				results[#results+1] = doc
+			end
+		end
+		local total_hits = index.advanced_search(query,fn,to,options.sort)
+		return results, total_hits
+	end
+
+	function index.get_document(query)
+		local doc
+		local function fn(_,doc_fn,_)
+			doc = doc_fn()
+		end
+		local total_hits = index.advanced_search(query,fn,1)
+		total_hits <= 1 or error("found "..total_hits.." documents for query: "..query)
+		return doc
+	end
+
+	function index.count(query)
+		return index.advanced_search(query)
+	end
+
+	function index.html_highlighter(query,formatter,container_tags)
+		local highlighter = index.highlighter(query,formatter)
+		return function(html)
+			local list = Html.parse(html,container_tags)
+			local result = {}
+			for _, obj in ipairs(list) do
+				if type(obj) == "string" then
+					obj = highlighter(obj)
+				end
+				result[#result+1] = obj
+			end
+			return Html.to_string(result)
+		end
+	end
+
+	function index.zip(zip_file)
+		index.snapshot( function(dir_path,file_names)
+			zip_file.delete()
+			local zip_path = zip_file.canonical().to_string()
+			local dir = uri("file:"..dir_path)
+			local dir_name = dir.name()
+			local options = {dir=dir.parent()}
+			for _, file_name in ipairs(file_names) do
+				local cmd = "zip "..zip_path.." "..dir_name.."/"..file_name
+				uri("os:"..cmd,options).read_text()
+			end
+		end )
+	end
+	index.zip = Boot.no_security(index.zip)
+
+	function index.restore(zip_file)
+		java_index.run_in_lock( function()
+			local lucene_dir = index.dir
+			local before_restore = lucene_dir.parent().child("before_restore.zip")
+			index.zip(before_restore)
+			java_index.close()
+			lucene_dir.delete()
+			uri("os:unzip "..zip_file.canonical().to_string(),{dir=lucene_dir.parent()}).read_text()
+			java_index.reopen()
+		end )
+	end
+	index.restore = Boot.no_security(index.restore)
+
+	function index.update(steps)
+		local version = 0
+		for i in pairs(steps) do
+			if version < i then
+				version = i
+			end
+		end
+		local doc = index.get_document"type:version" or { type="version", version=integer(0) }
+		while doc.version < version do
+			doc.version = integer(doc.version + 1)
+			logger.error("step "..doc.version)
+			index.run_in_transaction( function()
+				local step = steps[doc.version] or error("missing step "..doc.version)
+				step()
+				index.save(doc)
+			end )
+		end
+	end
+
+	local function multi_error()
+		error "multiple lucene instances"
+	end
+
+	if Rpc.functions.lucene_backup == nil then
+
+		function Rpc.functions.lucene_backup(password)
+			Io.password == password or error "wrong password"
+			local zip_file = index.dir.parent().child("backup.zip")
+			index.zip(zip_file)
+			return zip_file
+		end
+
+		function Rpc.functions.lucene_restore(password,zip_file)
+			Io.password == password or error "wrong password"
+			local backup_zip = index.dir.parent().child("backup.zip")
+			backup_zip.write(zip_file)
+			index.restore(backup_zip)
+		end
+
+	else
+		Rpc.functions.lucene_backup = multi_error
+		Rpc.functions.lucene_restore = multi_error
+	end
+
+	return index
+end
+
+return Lucene

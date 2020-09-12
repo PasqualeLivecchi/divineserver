@@ -1,0 +1,60 @@
+local Luan = require "luan:Luan.luan"
+local ipairs = Luan.ipairs
+local Table = require "luan:Table.luan"
+local Io = require "luan:Io.luan"
+local print = Io.print
+local output_to = Io.output_to
+local String = require "luan:String.luan"
+local Time = require "luan:Time.luan"
+
+
+local compiler = Table.concat( { "javac -g -encoding UTF8", ... }, " " )
+
+
+local function header()
+%>
+# Makefile created on <%=Time.format(Time.now())%> by Mmake
+
+.SUFFIXES: .java .class
+
+.java.class:
+	<%=compiler%> '$<'
+
+all: <%
+end
+
+
+local function mmake(dir)
+	local javas = {}
+	local dirs = {}
+	for _, file in ipairs(dir.children()) do
+		local name = file.name()
+		if String.matches(name,[[\.java$]]) then
+			javas[#javas+1] = String.sub(name,1,-6)
+		end
+		if file.is_directory() and mmake(file) then
+			dirs[#dirs+1] = name
+		end
+	end
+	if #javas == 0 and #dirs == 0 then
+		return false;
+	end
+	local out = dir.child("Makefile").text_writer()
+	output_to(out,header)
+	for _, s in ipairs(javas) do
+		s = String.gsub(s,[[\$]],[[\$\$]])
+		out.write( "\\\n\t\t",  s , ".class" )
+	end
+	for _, s in ipairs(dirs) do
+		out.write( "\n\tcd ", s, ";  make all" )
+	end
+	out.write "\n\nclean:\n\trm -f *.class\n"
+	for _, s in ipairs(dirs) do
+		out.write( "\tcd ", s, ";  make clean\n" )
+	end
+	out.close()
+	print(dir.to_string())
+	return true
+end
+
+mmake(Io.schemes.file ".")

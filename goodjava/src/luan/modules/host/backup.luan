@@ -1,0 +1,18 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local Io = require "luan:Io.luan"
+local print = Io.print or error()
+local uri = Io.uri or error()
+local Hosting = require "luan:host/Hosting.luan"
+
+if #{...} ~= 2 then
+	Io.stderr.write "usage: luan luan:host/backup.luan domain password\n"
+	return
+end
+
+local domain, password = ...
+
+local zip = Hosting.caller(domain).lucene_backup(password)
+uri("file:backup.zip").write(zip)
+
+print("backed up lucene from "..domain.." to backup.zip")

@@ -1,0 +1,15 @@
+require "java"
+local BasicLuan = require "java:luan.modules.BasicLuan"
+local MathLuan = require "java:luan.modules.MathLuan"
+
+
+local Number = {}
+
+Number.double = BasicLuan.assert_double
+Number.float = BasicLuan.assert_float
+Number.integer = BasicLuan.assert_integer
+Number.long = BasicLuan.assert_long
+Number.long_to_string = MathLuan.long_to_string
+Number.type = BasicLuan.number_type
+
+return Number

@@ -1,0 +1,59 @@
+require "java"
+local TableLuan = require "java:luan.modules.TableLuan"
+
+local Table = {}
+
+Table.clear = TableLuan.clear
+Table.concat = TableLuan.concat
+Table.copy = TableLuan.copy
+Table.hash_value = TableLuan.hash_value
+Table.insert = TableLuan.insert
+Table.is_empty = TableLuan.is_empty
+Table.pack = TableLuan.pack
+Table.remove = TableLuan.remove
+Table.size = TableLuan.size
+Table.sort = TableLuan.sort
+Table.unpack = TableLuan.unpack
+
+
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local type = Luan.type or error()
+local pairs = Luan.pairs or error()
+local toTable = TableLuan.toTable or error()
+local copy = Table.copy or error()
+
+function Table.java_to_table_shallow(obj)
+	local rtn = toTable(obj)
+	if rtn ~= nil then
+		return rtn
+	end
+	local tp = type(obj)
+	if tp == "java" then
+		tp = obj.getClass().getName()
+	end
+	error("can't convert type "..tp.." to table")
+end
+
+local to_luan, deepen
+
+function to_luan(obj,java_to_table_shallow)
+	return type(obj)=="java" and deepen(java_to_table_shallow(obj),java_to_table_shallow) or obj
+end
+
+function deepen(tbl,java_to_table_shallow)
+	for key, value in pairs(copy(tbl)) do
+		key = to_luan(key,java_to_table_shallow)
+		value = to_luan(value,java_to_table_shallow)
+		tbl[key] = value
+	end
+	return tbl
+end
+
+function Table.java_to_table_deep(obj,java_to_table_shallow)
+	java_to_table_shallow = java_to_table_shallow or Table.java_to_table_shallow
+	return deepen(java_to_table_shallow(obj),java_to_table_shallow)
+end
+
+
+return Table

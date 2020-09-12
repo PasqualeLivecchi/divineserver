@@ -1,0 +1,115 @@
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local do_file = Luan.do_file or error()
+local String = require "luan:String.luan"
+local gsub = String.gsub or error()
+local Number = require "luan:Number.luan"
+local long = Number.long or error()
+
+
+local dir, domain = ...
+
+
+-- logging
+
+local one_mb = long(1024*1024)
+
+do
+	require "java"
+	local LuanLogger = require "java:luan.modules.logging.LuanLogger"
+	local Layouts = require "java:goodjava.logger.Layouts"
+	local DateLayout = require "java:goodjava.logger.DateLayout"
+	local ListLayout = require "java:goodjava.logger.ListLayout"
+	local Level = require "java:goodjava.logger.Level"
+	local RollingFileAppender = require "java:goodjava.logger.RollingFileAppender"
+	local LevelAppender = require "java:goodjava.logger.LevelAppender"
+	local ListAppender = require "java:goodjava.logger.ListAppender"
+
+	local layout = ListLayout.new(DateLayout.new("yyyy-MM-dd HH:mm:ss,SSS")," ",Layouts.LEVEL_PADDED," ",Layouts.LOGGER," - ",Layouts.MESSAGE,"\n",Layouts.THROWABLE)
+	local log_dir = dir.."/site/private/local/logs/"
+
+	local function new_appender(file,level)
+		local appender = RollingFileAppender.new(layout, log_dir..file)
+		appender.maxFileSize = one_mb
+		appender = LevelAppender.new(appender,level)
+		return appender
+	end
+
+	local err = new_appender("error.log",Level.ERROR)
+	local warn = new_appender("warn.log",Level.WARN)
+	local info = new_appender("info.log",Level.INFO)
+	local appender = ListAppender.new(err,warn,info)
+	LuanLogger.configure(appender)
+end
+
+
+-- set vars
+
+local Io = require "luan:Io.luan"
+local Http = require "luan:http/Http.luan"
+local Hosted = require "luan:host/Hosted.luan"
+local Mail = require "luan:mail/Mail.luan"
+
+Io.password = do_file(dir.."/info.luan").password or error()
+
+Http.dir = "file:"..dir.."/site"
+Http.is_serving = true
+
+function Io.schemes.site(path,loading)
+	local u =  Io.uri( Http.dir..path, loading )
+	u.uri_string = "site:"..path
+	return u
+end
+
+Http.domain = domain
+Hosted.is_hosted = true
+
+
+-- postgres
+
+local Sql = require "luan:sql/Sql.luan"
+local database = Sql.database or error()
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "init"
+
+local fn = Luan.load_file("file:postgres.luan") or error()
+local pg = fn()
+
+function Hosted.postgres_spec()
+	if pg == nil then
+		return nil
+	end
+	local spec = {
+		class = "org.postgresql.Driver"
+		url = "jdbc:postgresql://localhost:5432/"..domain
+		user = domain
+		password = Io.password
+	}
+	local db = database(pg)
+	local exists = db.query("select datname from pg_database where datname=?",domain).results() ~= nil;
+	--logger.info("exists "..exists)
+	if not exists then
+		db.update( [[create user "]]..spec.user..[[" with encrypted password ']]..spec.password..[[']] )
+		db.update( [[create database "]]..domain..[[" owner "]]..spec.user..[["]] )
+	end
+	db.close()
+	return spec
+end
+
+
+-- callback to luanhost code
+do_file "file:init.luan"
+
+
+require "java"
+local WebHandler = require "java:luan.host.WebHandler"
+local LuanJava = require "java:luan.Luan"
+
+function Hosted.no_security(password)
+	WebHandler.securityPassword == password or error "wrong password"
+	LuanJava.setSecurity(nil)
+end
+
+function Http.reset_luan()
+	WebHandler.removeHandler(domain)
+end

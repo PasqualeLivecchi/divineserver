@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<script>
+			function p() {
+				document.body.innerText = ''
+					+ window.innerWidth + 'px innerWidth\n' 
+					+ window.innerHeight + 'px innerHeight\n'
+					+ '\n'
+					+ window.outerWidth + 'px outerWidth\n' 
+					+ window.outerHeight + 'px outerHeight\n'
+				;
+			}
+		</script>
+	</head>
+	<body onload="p()" onresize="p()">
+	</body>
+</html>

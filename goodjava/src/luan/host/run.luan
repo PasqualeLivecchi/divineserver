@@ -1,0 +1,43 @@
+require "java"
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local do_file = Luan.do_file or error()
+local ipairs = Luan.ipairs or error()
+local Io = require "luan:Io.luan"
+local Hosted = require "luan:host/Hosted.luan"
+local Logging = require "luan:logging/Logging.luan"
+local logger = Logging.logger "run"
+local NotFound = require "java:luan.modules.http.NotFound"
+local ListHandler = require "java:goodjava.webserver.handlers.ListHandler"
+local WebHandler = require "java:luan.host.WebHandler"
+Hosted.WebHandler = WebHandler
+
+
+local here = Io.schemes.file(".").canonical().to_string()
+Hosted.sites_dir = here.."/sites/"
+
+do_file "classpath:luan/host/main.luan"
+
+
+-- web server
+
+local Server = require "java:goodjava.webserver.Server"
+local IndexHandler = require "java:goodjava.webserver.handlers.IndexHandler"
+local ContentTypeHandler = require "java:goodjava.webserver.handlers.ContentTypeHandler"
+local SafeHandler = require "java:goodjava.webserver.handlers.SafeHandler"
+
+local handler = WebHandler.new(Hosted.sites_dir)
+local not_found_hander = NotFound.new(handler)
+handler = IndexHandler.new(handler)
+handler = ListHandler.new( handler, not_found_hander )
+handler = ContentTypeHandler.new(handler)
+handler = SafeHandler.new(handler)
+local server = Server.ForAddress.new("127.0.0.1",8080,handler)
+server.start()
+
+
+local sites_dir = Io.schemes.file(Hosted.sites_dir)
+for _, site_dir in ipairs(sites_dir.children()) do
+	local name = site_dir.name()
+	WebHandler.loadHandler(name)
+end

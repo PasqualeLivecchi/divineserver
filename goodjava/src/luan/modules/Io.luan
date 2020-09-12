@@ -1,0 +1,111 @@
+require "java"
+local IoLuan = require "java:luan.modules.IoLuan"
+local System = require "java:java.lang.System"
+local Boot = require "luan:Boot.luan"
+
+
+local Io = {}
+
+Io.dns_lookup = IoLuan.dns_lookup
+Io.ip = IoLuan.ip
+Io.my_ips = IoLuan.my_ips
+Io.read_console_line = IoLuan.read_console_line
+Io.schemes = Boot.schemes
+Io.uri = Boot.uri
+Io.stdin = Boot.new_LuanIn( IoLuan.defaultStdin )
+Io.stdout = Boot.text_writer(System.out)
+Io.stderr = Boot.text_writer(System.err)
+
+-- used by http and rpc
+Io.password = "password"
+
+local Luan = require "luan:Luan.luan"
+local error = Luan.error
+local to_string = Luan.to_string or error()
+local type = Luan.type or error()
+local ipairs = Luan.ipairs or error()
+local pairs = Luan.pairs or error()
+local values = Luan.values or error()
+local load = Luan.load or error()
+local Table = require "luan:Table.luan"
+local pack = Table.pack or error()
+local unpack = Table.unpack or error()
+local String = require "luan:String.luan"
+local encode = String.encode or error()
+local matches = String.matches or error()
+
+
+-- do not change
+function Io.template_write(...)
+	return Io.stdout.write(...)
+end
+
+
+function Io.print_to(out,...)
+	local list = {}
+	for _, v in values(...) do
+		list[#list+1] = to_string(v)
+		list[#list+1] = '\t'
+	end
+	if #list > 0 then
+		list[#list] = '\n'
+		out.write( unpack(list) )
+	else
+		out.write('\n')
+	end
+end
+
+function Io.print(...)
+	Io.print_to(Io.stdout,...)
+end
+
+
+function Io.output_to(out,fn)
+	local old_out = Io.stdout
+	try
+		Io.stdout = out
+		return fn()
+	finally
+		Io.stdout = old_out
+	end
+end
+
+local uri = Io.uri  -- make local
+
+function Io.output_of(fn)
+	local string_uri = uri "string:"
+	local out = string_uri.text_writer()
+	Io.output_to(out,fn)
+	out.close()
+	return string_uri.read_text()
+end
+
+
+-- debug
+
+function Io.debug(prompt)
+	prompt = prompt or "luan_debug> "
+	local function console()
+		return Io.read_console_line(prompt)
+	end
+	local env = {}
+	for line in console do
+		try 
+			local fn
+			try
+				fn = load("return "..line,"stdin",env)
+			catch e
+				fn = load(line,"stdin",env)
+			end
+			local rtn = pack( fn() )
+			if rtn.n > 0 then
+				Io.print( unpack(rtn) )
+			end
+		catch e
+			Io.print(e)
+		end
+	end
+end
+
+
+return Io
