@@ -1,5 +1,5 @@
 # def __init__(self,location=".//db.db"):#     self.location = location#     self.currentsize = linecache.getline(location,1)# def load(self,key):#     data = linecache.getline(self.location,key)#     return data if data else "Key not found"from collections import deque
-import os,json
+import os,json,mmap
 class Storage:
     def __init__(self , location=".\\db"):
         self.location = os.path.expanduser(location)

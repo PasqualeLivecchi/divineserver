@@ -4,9 +4,9 @@ import socket,os,asyncio,mmap
 
 
 class Server:
-    def __init__(self, port, handler):
-        self.port = port
+    def __init__(self, handler, port):
         self.handler = handler
+        self.port = port
         self.loop = asyncio.get_event_loop()
         host = 'localhost'
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM,0)
@@ -17,22 +17,26 @@ class Server:
 
     async def serve(self):
         while True:
-            conn, addr = await self.loop.sock_accept(sock)
-            if isinstance(hunt,Handler):
-                self.loop.create_task(hunt(conn))
+            conn, addr = await self.loop.sock_accept(self.sock)
+            self.loop.create_task(self.hunt(conn))
 
 
-    async def hunt(self, handler, conn):
-        while True:
-            msg = await self.loop.sock_recv(conn,1024)
-            if not msg:
-                break
-            await self.loop.sock_sendall(conn, msg)
-        conn.close()
+    async def hunt(self, conn, handler=None):
+        if not handler:
+            handler = self.handler
+        if isinstance(handler,Handler):
+            while True:
+                msg = await self.loop.sock_recv_into(conn,handler.handle(conn))
+                if not msg:
+                    break
+                await self.loop.sock_sendall(conn, msg)
+            conn.close()
+        else:
+            raise ValueError("Handler required")
 
     def run(self):
         try:
-            self.loop.create_task(serve())
+            self.loop.create_task(self.serve())
         except IOError as ioe:
             print(f"error: {ioe}")
         print(f"started server on port {self.port}")

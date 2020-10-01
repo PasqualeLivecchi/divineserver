@@ -143,6 +143,7 @@ class DirHandler(Handler):
 class ContentTypeHandler(Handler):
     def __init__(self, handler,kv={},charset="utf-8"):
         self.handler = handler
+        self.kv = kv
         attrs = f" charset={charset}" if charset else ""
         htmltype = "text/html" + attrs
         texttype = "text/plain" + attrs

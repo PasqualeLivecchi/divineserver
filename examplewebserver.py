@@ -18,15 +18,12 @@ class Cookies(Handler):
 
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
-            writer = open(response, "w")
-            for k,v in request.cookies.items():
-                writer.write(k+" = "+v+"\n")
-            writer.close()
-            return response
+            with open(response, "w") as w:
+                for k,v in request.cookies.items():
+                    writer.write(k+" = "+v+"\n")
+                return response
         except IOError as ioe:
             raise Exception(ioe)
-        finally:
-            writer.close()
 
 
 class Example(Handler):
@@ -34,19 +31,15 @@ class Example(Handler):
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
-            writer = open(response, "w")
-            writer.write("Hello World\n")
-            writer.close()
-            return response
-        except IOError as ioe:
-            raise Exception("shouldn't happen",e)
-        finally:
-            writer.close()
+            with open(response, "w") as w:
+                w.write("Hello World\n")
+                return response
+        except Exception as ioe:
+            raise IOError(f"Shouldn't happen {ioe}")
 
 def simple(): # throws IOError {
     handler = Example()
-    Server(8080,handler).start()
-    
+    Server(handler,8080).run()
 
 def fancy(): # throws IOError {
     kv = {}
@@ -61,42 +54,34 @@ def fancy(): # throws IOError {
     handler = ContentTypeHandler(handler)
     handler = SafeHandler(handler)
     handler = LogHandler(handler)
-    Server(8080,handler).start()
+    Server(handler,8080).run()
 
 
 class Headers(Handler):
-
     def handle(self,request):
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
-            writer = open(response, "w")
-            for k,v in request.headers.items():
-                writer.write(k+": "+v+"\n")
-            writer.close()
-            return response
+            with open(response, "w") as w:
+                for k,v in request.headers.items():
+                    w.write(k+": "+v+"\n")
+                return response
         except IOError as ioe:
             raise Exception(ioe)
-        finally:
-            writer.close()
 
 
 class Params(Handler):
-
     def handle(self,request):
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
-            writer = open(response, "w")
-            for k,v in request.parameters.items():
-                writer.write(k+" = "+v+"\n")
-            writer.close()
-            return response
+            with open(response, "w") as w:
+                for k,v in request.parameters.items():
+                    w.write(k+" = "+v+"\n")
+                return response
         except IOError as ioe:
             raise Exception(ioe)
-        finally:
-            writer.close()
 
 if __name__ == '__main__':
     simple()
-    fancy()
+    # fancy()
