@@ -1,5 +1,5 @@
 from .handlers import Handler
-import socket,os,asyncio,mmap
+import socket,os,asyncio,mmap,pickle
 
 
 
@@ -26,9 +26,10 @@ class Server:
             handler = self.handler
         if isinstance(handler,Handler):
             while True:
-                msg = await self.loop.sock_recv_into(conn,handler.handle(conn))
+                msg = await self.loop.sock_recv(conn,8096)#len(handler.handle(conn)))
                 if not msg:
                     break
+                print("msg",msg)
                 await self.loop.sock_sendall(conn, msg)
             conn.close()
         else:
