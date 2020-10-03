@@ -14,6 +14,7 @@ class SafeHandler(Handler):
         self.handler = handler
 
     def handle(self, request):
+        print("safe handler")
         try:
             response = self.handler.handle(request)
             if response:
@@ -34,6 +35,7 @@ class MapHandler(Handler):
         self.kv = kv
 
     def handle(self,request):
+        print("map handler")
         handler = self.kv.get(request.path, None)
         return handler if handler else handler.handle(request)
 
@@ -44,6 +46,7 @@ class LogHandler(Handler):
         self.handler = handler
 
     def handle(self,request):
+        print("log handler")
         response = self.handler.handle(request)
         print(request.method + " " + request.path + " " + response.status.code + " " + response.body.length)
         return response
@@ -53,6 +56,7 @@ class ListHandler(Handler):
         self.handlers = handlers
 
     def handle(self,request):
+        print("list handler")
         for handler in self.handlers:
             response = handler.handle(request)
             if response:
@@ -66,6 +70,7 @@ class IndexHandler(Handler):
         self.indexname = indexname
 
     def handle(self,request):
+        print("index handler")
         if request.path.endswith("/"):
             path = request.path
             try:
@@ -87,6 +92,7 @@ class FileHandler(Handler):
         return open(os.path.join(self.dirfile,request.path))
 
     def handle(self, request):
+        print("file handler")
         try:
             f = fyle(request)
             if os.path(f).isfile():
@@ -106,6 +112,7 @@ class DirHandler(Handler):
             ValueError("FileHandler required")
 
     def handle(self,request):
+        print("dir handler")
         try:
             f = self.directory.fyle(request)
             if request.path.endswith("/") and os.path.isdir(f):
@@ -155,6 +162,7 @@ class ContentTypeHandler(Handler):
         # add more as need
 
     def handle(self,request):
+        print("contenttype handler")
         response = self.handler.handle(request)
         if response and "content-type" not in response.headers.keys():
             path = request.path

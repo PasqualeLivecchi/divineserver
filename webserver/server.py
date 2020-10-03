@@ -30,6 +30,7 @@ class Server:
             msg = await self.loop.sock_recv(conn,8096)
             if not msg:
                 break
+            print("msg",msg)
             await self.loop.sock_sendall(conn, msg)
         conn.close()
         # else:

@@ -8,6 +8,7 @@ import pickle
 
 class Cookies(Handler):
     def handle(self,request):
+        print("cookies handler")
         response = Response()
         name = request.parameters.get("name", None)
         if name:
@@ -31,6 +32,7 @@ class Cookies(Handler):
 
 class Example(Handler):
     def handle(self,request):
+        print("example handler")
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
@@ -58,11 +60,12 @@ def fancy(): # throws IOError {
     cthandler = ContentTypeHandler(listhandler)
     safehandler = SafeHandler(cthandler)
     # loghandler = LogHandler(safehandler)
-    Server(safehandler,8080).run()
+    Server(listhandler,8080).run()
 
 
 class Headers(Handler):
     def handle(self,request):
+        print("headers handler")
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
@@ -80,6 +83,7 @@ class Headers(Handler):
 
 class Params(Handler):
     def handle(self,request):
+        print("params handler")
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
         try:
