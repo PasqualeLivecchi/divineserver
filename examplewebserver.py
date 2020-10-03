@@ -33,18 +33,16 @@ class Example(Handler):
     def handle(self,request):
         response = Response()
         response.headers.get("content-type", "text/plain charset=utf-8")
-        print(response.headers)
         try:
             response.body['content'] = "Hello World\n"#(str("Hello World\n").encode(response.headers.get('content-type',"text/plain charset=utf-8").split('charset=')[1]))
             response.body['length'] = len(response.body['content'])
-            print("dumps",pickle.dumps(response))
             return pickle.dumps(response)
         except Exception as ioe:
             raise IOError(f"Shouldn't happen {ioe}")
 
 def simple(): # throws IOError {
     handler = Example()
-    print(handler.handle(Request()))
+    # handler.handle(Request())
     Server(handler,8080).run()
 
 def fancy(): # throws IOError {
@@ -56,11 +54,11 @@ def fancy(): # throws IOError {
     kvhandler = MapHandler(kv)
     filehandler = FileHandler()
     dirhandler = DirHandler(filehandler)
-    handler = ListHandler([kvhandler, filehandler, dirhandler])
-    handler = ContentTypeHandler(handler)
-    handler = SafeHandler(handler)
-    handler = LogHandler(handler)
-    Server(handler,8080).run()
+    listhandler = ListHandler([kvhandler, filehandler, dirhandler])
+    cthandler = ContentTypeHandler(listhandler)
+    safehandler = SafeHandler(cthandler)
+    # loghandler = LogHandler(safehandler)
+    Server(safehandler,8080).run()
 
 
 class Headers(Handler):
@@ -72,7 +70,6 @@ class Headers(Handler):
             for k,v in request.headers.items():
                 response.body[k] = v
             return pickle.dumps(response)
-
             # with open(response, "wb+") as w:
             #     for k,v in request.headers.items():
             #         w.write(k+": "+v+"\n")

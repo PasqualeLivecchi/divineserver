@@ -24,16 +24,16 @@ class Server:
     async def hunt(self, conn, handler=None):
         if not handler:
             handler = self.handler
-        if isinstance(handler,Handler):
-            while True:
-                msg = await self.loop.sock_recv(conn,8096)#len(handler.handle(conn)))
-                if not msg:
-                    break
-                print("msg",msg)
-                await self.loop.sock_sendall(conn, msg)
-            conn.close()
-        else:
-            raise ValueError("Handler required")
+        # if isinstance(handler,Handler):
+            # print(type(handler))
+        while True:
+            msg = await self.loop.sock_recv(conn,8096)
+            if not msg:
+                break
+            await self.loop.sock_sendall(conn, msg)
+        conn.close()
+        # else:
+        #     raise ValueError("Handler required")
 
     def run(self):
         try:

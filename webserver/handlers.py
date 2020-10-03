@@ -24,9 +24,7 @@ class SafeHandler(Handler):
             response = Response()
             response.status = getstatus(500)
             response.headers.put("content-type", "text/plain charset=utf-8")
-            with open(response, "w") as w:
-                w.write( "Internel Server Error\n\n" )
-                w.write(e.with_traceback())
+            response.body['content'] = f"Internel Server Error\n\n{e.with_traceback()}"
             return response
 
 
@@ -150,7 +148,6 @@ class ContentTypeHandler(Handler):
         self.contenttype4noextension = htmltype
         self.kv["html"] = htmltype
         self.kv["txt"] = texttype
-        self.kv["luan"] = texttype
         self.kv["css"] = "text/css"
         self.kv["js"] = "application/javascript"
         self.kv["json"] = "application/json" + attrs
