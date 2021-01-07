@@ -50,7 +50,7 @@ class Headers(Handler):
     def handle(self, request):
         print("headers handler")
         response = Response()
-        response.headers.get("content-type", "text/plain charset=utf-8")
+        response.headers["content-type"] = "text/plain charset=utf-8"
         try:
             s = ""
             for k, v in request.headers.items():
@@ -66,7 +66,7 @@ class Params(Handler):
     def handle(self, request):
         print("params handler")
         response = Response()
-        response.headers.get("content-type", "text/plain charset=utf-8")
+        response.headers["content-type"] = "text/plain charset=utf-8"
         try:
             s = ""
             for k, v in request.parameters.items():
@@ -74,12 +74,8 @@ class Params(Handler):
             response.body['content'] = s
             response.body['length'] = len(s)
             return response
-            # with open(response, "wb+") as w:
-            #     for k,v in request.parameters.items():
-            #         w.write(k+" = "+v+"\n")
-            #     return response
-        except IOError as ioe:
-            raise IOError(ioe)
+        except Exception as e:
+            raise RuntimeError(e)
 
 def simple():  # throws IOError {
     Server(Example(), 8080).start()
@@ -99,7 +95,7 @@ def fancy():  # throws IOError {
     # safehandler = SafeHandler(cthandler)
     # print("safehandler ok")
     # # loghandler = LogHandler(safehandler)
-    Server(SafeHandler(Example()), 8080).start()
+    Server(SafeHandler(Params()), 8080).start()
 
 
 if __name__ == '__main__':

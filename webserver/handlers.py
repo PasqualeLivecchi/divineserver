@@ -3,73 +3,102 @@ from .request import Request
 from .response import Response
 import os,datetime
 
-class Handler:
-    def handle(request):
-        print("handler not implemented")
-        return "handler not implemented"
+# class Handler:
+#     def handle(request):
+#         print("handler not implemented")
+#         return "handler not implemented"
+
+def handlesafely(request,handler):
+    print("handlesafely")
+    try:
+        response = handler.handle(request)
+        return response if response else Response.errorresponse(404, request.path + " not found\n")
+    except RuntimeError as e:
+        print("handlesafely error")
+        response = Response()
+        response.status = getstatus(500)
+        response.headers['content-type'] = "text/plain; charset=utf-8"
+        response.body['content'] = f"Internal Server Error\n\n{e.with_traceback()}"
+        return response
 
 
-class SafeHandler(Handler):
-    def __init__(self, handler):
-        self.handler = handler
+# class SafeHandler(Handler):
+#     def __init__(self, handler):
+#         self.handler = handler
+#
+#     def handle(self, request):
+#         print("safe handler")
+#         try:
+#             response = self.handler.handle(request)
+#             if response:
+#                 print(f"safe response: {vars(response)}")
+#                 return response
+#             else:
+#                 response404 = Response.errorresponse(404, request.path + " not found\n")
+#                 print(f"safe response 404: {response404}")
+#                 return response404
+#         except RuntimeError as e:
+#             print(e)
+#             response = Response()
+#             response.status = getstatus(500)
+#             response.headers['content-type'] = "text/plain; charset=utf-8"
+#             response.body['content'] = f"Internal Server Error\n\n{e.with_traceback()}"
+#             return response
 
-    def handle(self, request):
-        print("safe handler")
-        try:
-            response = self.handler.handle(request)
-            if response:
-                print(f"safe response: {vars(response)}")
-                return response
-            else:
-                response404 = Response.errorresponse(404, request.path + " not found\n")
-                print(f"safe response 404: {response404}")
-                return response404
-        except RuntimeError as e:
-            print(e)
-            response = Response()
-            response.status = getstatus(500)
-            response.headers.put("content-type", "text/plain charset=utf-8")
-            response.body['content'] = f"Internal Server Error\n\n{e.with_traceback()}"
+def handledict(request, dictofhandlers={}):
+    handler = dictofhandlers.get(request.path, None)
+    return handler if handler else handler(request)
+
+# class MapHandler(Handler):
+#     def __init__(self,kv={}):
+#         self.kv = kv
+#
+#     def handle(self,request):
+#         print("map handler")
+#         handler = self.kv.get(request.path, None)
+#         response = handler if handler else handler.handle(request)
+#         print(f"map response: {vars(response)}")
+#         return response
+
+def handlelog(request,handler):
+    response = handler(request)
+    log.info(f"{request.method} {request.path} {response.status} {response.body['length']}")
+    return response
+
+
+
+# class LogHandler(Handler):
+#     # private static final Logger logger = LoggerFactory.getLogger("HTTP")
+#     def __init__(self, handler):
+#         self.handler = handler
+#
+#     def handle(self,request):
+#         print("log handler")
+#         response = self.handler.handle(request)
+#         print(f"{request.method} {request.path} {response.status.code} {response.body.length}")
+#         print(f"log response:{vars(response)}")
+#         return response
+
+def handlelist(request,listofhandlers):
+    for handler in listofhandlers:
+        response = handler(request)
+        if response:
             return response
+    return None
 
 
-
-class MapHandler(Handler):
-    def __init__(self,kv={}):
-        self.kv = kv
-
-    def handle(self,request):
-        print("map handler")
-        handler = self.kv.get(request.path, None)
-        response = handler if handler else handler.handle(request)
-        print(f"map response: {vars(response)}")
-        return response
-
-
-class LogHandler(Handler):
-    # private static final Logger logger = LoggerFactory.getLogger("HTTP")
-    def __init__(self, handler):
-        self.handler = handler
-
-    def handle(self,request):
-        print("log handler")
-        response = self.handler.handle(request)
-        print(f"{request.method} {request.path} {response.status.code} {response.body.length}")
-        print(f"log response:{vars(response)}")
-        return response
-
-class ListHandler(Handler):
-    def __init__(self, handlers=[]):
-        self.handlers = handlers
-
-    def handle(self,request):
-        print("list handler")
-        for i,handler in enumerate(self.handlers):
-            response = handler.handle(request)
-            if response:
-                print(f"list response {i}: {vars(response)}")
-                yield response
-        return None
+# class ListHandler(Handler):
+#     def __init__(self, handlers=[]):
+#         self.handlers = handlers
+#
+#     def handle(self,request):
+#         print("list handler")
+#         for i,handler in enumerate(self.handlers):
+#             response = handler.handle(request)
+#             if response:
+#                 print(f"list response {i}: {vars(response)}")
+#                 yield response
+#         return None
 
 
 class IndexHandler(Handler):
@@ -178,7 +207,7 @@ class ContentTypeHandler(Handler):
             path = request.path
             intslash = path.rindex('/')
             intdot = path.rindex('.')
-            _type = None
+            _type = self.contenttype4noextension
             if intdot < intslash:  # no extension
                 _type = None #contenttype4noextension
             else: # extension
