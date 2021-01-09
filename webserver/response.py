@@ -34,7 +34,7 @@ class Response:
     def errorresponse(statuscode, text):
         response = Response()
         response.statuscode = int(statuscode)
-        response.headers["content-type"] = "text/plain charset=utf-8"
+        response.headers["content-type"] = "text/plain; charset=utf-8"
         response.body['content'] = text
         response.body['length'] = len(text)
         return response

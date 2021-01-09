@@ -1,4 +1,3 @@
-from .handlers import Handler
 from .connection import Connection
 import socket, asyncio
 

@@ -74,7 +74,7 @@ class Connection:
                 scheme = request.headers.get("x-forwarded-proto", None)
                 if scheme:
                     request.scheme = scheme
-                response = self.server.handler.handle(request)
+                response = self.server.handler(request)
             except Exception as e:
                 # logger.warn("parse error\n"+request.rawhead.trim()+"\n",e)
                 msg = f"parse error\n{request.rawhead.strip()}\n{e}"
