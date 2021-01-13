@@ -1,8 +1,27 @@
 from .requestparser import RequestParser
 from .request import Request
 from .response import Response
-from copy import deepcopy
 import socket,asyncio
+
+
+async def handleconnection(server,sock):
+    print("connection handleconnection")
+    try:
+        loop,request,response,contenttype,ordr,ordn,twomb = server.loop,Request(),None,None,ord('\r'),ord('\n'),2_097_152
+        buf = await loop.sock_recv(sock,twomb)
+        print(f"buf:{buf}")
+        size = len(buf)
+        if buf == -1:
+            if size <= 0:
+                sock.close()
+                return
+            raise IOError("unexpected end of input at "+size)
+    except Exception as e:
+        msg = f"parse error\r\n{request.rawhead.strip()}\r\n{e}"
+        if contenttype:
+            msg = "invalid content for content-type " + contenttype + "\r\n" + msg
+        response = Response.errorresponse(400, msg)
+
 
 class Connection:
     def __init__(self, server, sock):
@@ -12,7 +31,7 @@ class Connection:
 
     async def handle(self):
         print("connection handle")
-        onegb = 1073741824
+        onegb = 4096
         try:
             request,response,contenttype,ordr,ordn = Request(),None,None,ord('\r'),ord('\n')
             try:
@@ -20,18 +39,23 @@ class Connection:
                 # print(f"handle buf:{buf}")
                 size = len(buf)
                 print(f"size:{size}")
+                if buf == -1:
+                    print("buf == -1")
+                    if size <= 0:
+                        print("buf == -1 and size <= 0")
+                        self.sock.close()
+                        return
+                    raise IOError("unexpected end of input at "+size)
                 endofheader = size
                 for i in range(0,size-3):
                     if buf[i]==ordr and buf[i+1]==ordn and buf[i+2]==ordr and buf[i+3]==ordn:
                         endofheader = i+4
-                        print(f"break endofheader:{endofheader}")
+                        print(f"break endofheader:{endofheader} :{buf[i]}{buf[i+1]}{buf[i+2]}{buf[i+3]}endofheader: {endofheader} started buf: {size}")
                         break
-                print(f"connection handle endofheadertest:{buf[-4]}{buf[-3]}{buf[-2]}{buf[-1]}endofheader: {endofheader} started buf: {size}")
+
                 rawhead = buf[0:endofheader]
-                # print(f"handle rawhead type:{type(rawhead)} rawhead:{rawhead}")
                 request.rawhead = rawhead.decode()
                 reqparser = RequestParser(request)
-                print(f"connection handle requestparser created requestparservars:{vars(reqparser)}")
                 reqparser.parsehead()
                 lenstr = request.headers.get("content-length")
                 print(f"lenstr:{lenstr}")
@@ -77,9 +101,9 @@ class Connection:
                 response = self.server.handler(request)
             except Exception as e:
                 # logger.warn("parse error\n"+request.rawhead.trim()+"\n",e)
-                msg = f"parse error\n{request.rawhead.strip()}\n{e}"
+                msg = f"parse error\r\n{request.rawhead.strip()}\r\n{e}"
                 if contenttype:
-                    msg = "invalid content for content-type " + contenttype + "\n" + msg
+                    msg = "invalid content for content-type " + contenttype + "\r\n" + msg
                 response = Response.errorresponse(400, msg)
             response.headers["connection"] = "close"
             response.headers["content-length"] = str(response.body['length'])
