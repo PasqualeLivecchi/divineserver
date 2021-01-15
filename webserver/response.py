@@ -1,6 +1,7 @@
 from . import util
 from . import status
 
+
 class Response:
     def __init__(self, protocol="HTTP/1.1",statuscode=200,headers={"server": "spellsoftruth"},body={"length":0,"content":None}):
         self.protocol = protocol
@@ -32,6 +33,7 @@ class Response:
 
     @staticmethod
     def errorresponse(statuscode, text):
+        print("response error")
         response = Response()
         response.statuscode = int(statuscode)
         response.headers["content-type"] = "text/plain; charset=utf-8"

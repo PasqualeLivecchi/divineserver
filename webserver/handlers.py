@@ -12,7 +12,7 @@ def handlesafely(request,handler):
         response = Response()
         response.statuscode = 500
         response.headers['content-type'] = "text/plain; charset=utf-8"
-        response.body['content'] = f"Internal Server Error\r\n{e.with_traceback()}"
+        response.body['content'] = "Internal Server Error\r\n" + e
         return response
 
 

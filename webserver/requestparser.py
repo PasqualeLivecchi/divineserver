@@ -13,7 +13,7 @@ class RequestParser:
     
     def parseurlencoded(self,charset):
         if self.request.body is None:
-            print(f"body is null\r\n{self.request.rawhead}")
+            print("body is null\r\n" + self.request.rawhead)
             return
         self.parser = Parser(str(self.request.body,encoding=charset))
         self.parsequery()
@@ -25,7 +25,7 @@ class RequestParser:
         self.parser = Parser(self.request.rawhead)
         self.parserequestline()
         while not self.parser.match(string="\r\n"):
-            print(f"parsehead not match")
+            print("parsehead not match")
             self.parserheaderfield()
         self.parsecookies()
 
@@ -39,9 +39,7 @@ class RequestParser:
         self.require(self.parser.match(string="\r\n"))
 
     def parsemethod(self):
-        # print("requestparser parsemethod")
         start = int(self.parser.currentindex())
-        # print(f"parsemethod currentindex:{start}")
         if not self.methodchar():
             raise Exception(f"parser {self.parser} no method")
         while self.methodchar():
@@ -60,13 +58,13 @@ class RequestParser:
         self.request.rawpath = self.parser.textfrom(start)
 
     def parsepath(self):
-        print("requestparser parsepath")
+        # print("requestparser parsepath")
         start = self.parser.currentindex()
         if not self.parser.match(char='/'):
             raise Exception(f"parser {self.parser} bad path")
         while self.parser.noneof(" ?#"):
             continue
-        self.request.path = self.urldecode( self.parser.textfrom(start) )
+        self.request.path = self.urldecode(self.parser.textfrom(start))
         self.request.originalpath = self.request.path
 
     def parsequery(self):
@@ -92,7 +90,7 @@ class RequestParser:
         return self.parser.noneof("=&# \t\n\f\r\u000b")
 
     def parseprotocol(self):
-        print("requestparser parseprotocol")
+        # print("requestparser parseprotocol")
         start = self.parser.currentindex()
         if not (self.parser.match(string="HTTP/") and self.parser.incharrange('0','9') and self.parser.match(char='.') and self.parser.incharrange('0','9')):
             raise RuntimeError(f"parser {self.parser} bad protocol")
@@ -101,16 +99,16 @@ class RequestParser:
         self.request.scheme = "http"
 
     def parserheaderfield(self):
-        print(f"requestparser parserheaderfield")
+        # print(f"requestparser parserheaderfield")
         name = self.parsename()
         self.require(self.parser.match(char=':'))
         while self.parser.anyof(" \t"):
-            print(f"parserheaderfield is any of ' \t' 1")
+            # print(f"parserheaderfield is any of ' \t' 1")
             continue
         value = self.parsevalue()
-        print(f"parserheaderfield value:{value}")
+        # print(f"parserheaderfield value:{value}")
         while self.parser.anyof(" \t"):
-            print(f"parserheaderfield is any of ' \t' 2")
+            # print(f"parserheaderfield is any of ' \t' 2")
             continue
         self.require(self.parser.match(string="\r\n"))
         self.request.headers[name] = value
@@ -125,7 +123,7 @@ class RequestParser:
         return self.parser.textfrom(start).lower()
 
     def parsevalue(self):
-        print("requestparser parsevalue")
+        # print("requestparser parsevalue")
         start = self.parser.currentindex()
         while not self.testendofvalue():
             self.require(self.parser.anychar())

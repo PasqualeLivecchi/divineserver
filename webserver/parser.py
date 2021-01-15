@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+
 class Parser:
     text = ""
     length = 0
@@ -11,17 +12,14 @@ class Parser:
         if isinstance(text,str):
             self.text = text
             self.length = len(text)
-            # print(f"parser __init__ text:{self.text} length:{self.length}")
         else:
             raise ValueError("String required")
 
     def i(self, i=None):
         if i:
             self.stack[self.frame] += i
-            # print(f"i cur inthigh:{self.inthigh} frame:{self.frame} stack[frame]:{self.stack[self.frame]}")
             if self.inthigh < self.stack[self.frame]:
                 self.inthigh = self.stack[self.frame]
-                # print(f"set inthigh:{self.inthigh}")
         else:
             return self.stack[self.frame]
 
@@ -30,7 +28,7 @@ class Parser:
         self.frame += 1
         if self.frame == len(self.stack):
             a = range(2*self.frame)
-            a = [deepcopy(stack[x]) for x in range(self.frame)]
+            a = [deepcopy(self.stack[x]) for x in range(self.frame)]
             self.stack = a
         self.stack[self.frame] = self.stack[self.frame-1]
         return self.i()
@@ -81,7 +79,6 @@ class Parser:
     def match(self, char=None, string=None):
         # print(f"parser match")
         if char:
-            # print(f"match char:'{char}' textchar:'{self.text[self.i()]}' endofinput:{self.endofinput()} textchar!=char:{self.text[self.i()] != char} text:{self.text}")
             if self.endofinput() or self.text[self.i()] != char:
                 return False
             self.i(1)
@@ -123,7 +120,7 @@ class Parser:
         if self.endofinput():
             print(f"parser incharrange endofinput:{self.endofinput()}")
             return False
-        c = chr(ord(self.text[self.i()]))#:self.i()+1]
+        c = chr(ord(self.text[self.i()]))
         if c < clow or c > chigh:
             # print(f"char:{c}")
             return False
@@ -154,12 +151,43 @@ class Parser:
 
     def textfrom(self, start):
         # print("parser textfrom")
-        # print(f"textfrom start: {start} self.text[start:self.i()]:{self.text[start:self.i()]}")
         return self.text[start:self.i()]
     
     def regionmatches(self,start,string,numofchar):
-        # print(f"parser regionmatches '{start}' '{string}' '{numofchar}'")
-        # print(f"string[0:numofchar]:'{string[0:numofchar]}'")
-        # print(f"self.text[start:start+numofchar]:'{self.text[start:start+numofchar]}'")
-        # print(f"string[0:numofchar] == self.text[start:start+numofchar]:{string[0:numofchar] == self.text[start:start+numofchar]}")
         return string[0:numofchar] == self.text[start:start+numofchar]
+
+
+class ParseException(Exception):
+    def __init__(self,parser,msg=""):
+        self.text = parser.text
+        self.errorindex = parser.currentindex()
+        self.highindex = parser.highindex()
+        line = ""
+        if self.text.find("\n") == -1:
+            line = self.text
+            pos = self.errorindex
+            msg += " (position " + str(pos+1) + ")\n"
+        else:
+            l,p = self.location(self.errorindex)
+            line = self.lines()[l]
+            pos = p
+            msg += " (line " + str(line+1) + ", pos " + str(pos+1) + ")\n"
+        msg += line + "\n"
+        for i in range(pos):
+            msg += '\t' if line[i] == '\t' else ' '
+        msg += "^\n"
+        super(ParseException, self).__init__(msg)
+
+    def location(self, index):
+        line,i,pos = 0,-1,0
+        while True:
+            j = self.text.find('\n',i+1)
+            if j == -1 or j >= index:
+                break
+            i = j
+            line += 1
+        pos = index - i - 1
+        return line,pos
+
+    def lines(self):
+        return self.text.split("\n")
