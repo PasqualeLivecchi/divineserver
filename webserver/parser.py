@@ -1,4 +1,5 @@
 from copy import deepcopy
+import inspect
 
 
 class Parser:
@@ -162,26 +163,12 @@ class ParseException(Exception):
         self.text = parser.text
         self.errorindex = parser.currentindex()
         self.highindex = parser.highindex()
-        line = ""
-        if self.text.find("\n") == -1:
-            line = self.text
-            pos = self.errorindex
-            msg += " (position " + str(pos+1) + ")\n"
-        else:
-            l,p = self.location(self.errorindex)
-            line = self.lines()[l]
-            pos = p
-            msg += " (line " + str(line+1) + ", pos " + str(pos+1) + ")\n"
-        msg += line + "\n"
-        for i in range(pos):
-            msg += '\t' if line[i] == '\t' else ' '
-        msg += "^\n"
         super(ParseException, self).__init__(msg)
 
     def location(self, index):
         line,i,pos = 0,-1,0
         while True:
-            j = self.text.find('\n',i+1)
+            j = self.text.find('\n',i)
             if j == -1 or j >= index:
                 break
             i = j
@@ -190,4 +177,26 @@ class ParseException(Exception):
         return line,pos
 
     def lines(self):
-        return self.text.split("\n")
+        return [l.replace('\r', '\r\n') for l in self.text.split("\n")]
+
+    def __str__(self):
+        print(f"parseexception curframe2:{inspect.getouterframes(inspect.currentframe(),4)}")
+        # print(f"parseexception curframe21:{inspect.getouterframes(inspect.currentframe(),2)[1]}")
+        # print(f"parseexception curframe213:{inspect.getouterframes(inspect.currentframe(),2)[1][3]}")
+        line, pos, msg, = "",0,super(ParseException, self).__str__()
+        if '\n' not in self.text:
+            line = self.text
+            pos = self.errorindex
+            msg += " (position " + str(pos+1) + ")\n"
+            print(f"newline not in lines. text:{line} pos:{pos} msg:{msg}")
+        else:
+            loc = self.location(self.errorindex)
+            line = self.lines()[loc[0]]
+            pos = loc[1]
+            print(f"newline in lines:{self.lines()} loc:{self.location(self.errorindex)} line:{line} pos:{pos}")
+            msg += " (line " + str(line+1) + ", pos " + str(pos+1) + ")\n"
+        msg += line + "\n"
+        for i in range(pos):
+            msg += '\t' if line[i] == '\t' else ' '
+        msg += "^\n"
+        return msg

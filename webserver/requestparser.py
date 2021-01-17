@@ -1,4 +1,4 @@
-from .parser import Parser
+from .parser import Parser, ParseException
 from .request import Request
 import pickle
 
@@ -12,6 +12,7 @@ class RequestParser:
             raise ValueError("Request required")
     
     def parseurlencoded(self,charset):
+        print("parseurlencoded")
         if self.request.body is None:
             print("body is null\r\n" + self.request.rawhead)
             return
@@ -21,11 +22,10 @@ class RequestParser:
     
     def parsehead(self):
         # print(f"requestparser parsehead")
-        # print(f"parsehead rawhead: {self.request.rawhead}")
-        self.parser = Parser(self.request.rawhead)
+        self.parser = Parser(rf"{self.request.rawhead}")
         self.parserequestline()
         while not self.parser.match(string="\r\n"):
-            print("parsehead not match")
+            print("new property")
             self.parserheaderfield()
         self.parsecookies()
 
@@ -41,7 +41,7 @@ class RequestParser:
     def parsemethod(self):
         start = int(self.parser.currentindex())
         if not self.methodchar():
-            raise Exception(f"parser {self.parser} no method")
+            raise ParseException(self.parser, "no method")
         while self.methodchar():
             # print("parsemethod methodchar")
             continue
@@ -61,7 +61,7 @@ class RequestParser:
         # print("requestparser parsepath")
         start = self.parser.currentindex()
         if not self.parser.match(char='/'):
-            raise Exception(f"parser {self.parser} bad path")
+            raise ParseException(self.parser, "bad path")
         while self.parser.noneof(" ?#"):
             continue
         self.request.path = self.urldecode(self.parser.textfrom(start))
@@ -93,9 +93,8 @@ class RequestParser:
         # print("requestparser parseprotocol")
         start = self.parser.currentindex()
         if not (self.parser.match(string="HTTP/") and self.parser.incharrange('0','9') and self.parser.match(char='.') and self.parser.incharrange('0','9')):
-            raise RuntimeError(f"parser {self.parser} bad protocol")
+            raise ParseException(self.parser, "bad protocol")
         self.request.protocol = self.parser.textfrom(start)
-        # print(f"requestparser parseprotocol:{self.request.protocol}")
         self.request.scheme = "http"
 
     def parserheaderfield(self):
@@ -142,7 +141,7 @@ class RequestParser:
         # print("requestparser require")
         # print(f"require boolean:{boolean}")
         if not boolean:
-            raise RuntimeError(f"parser {self.parser} failed")
+            raise ParseException(self.parser, "failed")
 
     def tokenchar(self):
         # print("requestparser tokenchar")
@@ -161,7 +160,7 @@ class RequestParser:
         text = self.request.headers.get("cookie")
         if text is None:
             return
-        self.parser = Parser(text)
+        self.parser = Parser(rf"{text}")
         while True:
             start = self.parser.currentindex()
             while self.parser.noneof("="):
@@ -183,21 +182,20 @@ class RequestParser:
             self.parser.match(char=' ')  # optional for bad browsers
 
     def parsemultipart(self):
-        contenttypestart = "multipart/form-data boundary="
-        if self.request.body == None:
+        contenttypestart = "multipart/form-data; boundary="
+        if self.request.body is None:
             print("body is null\n"+self.request.rawhead)
             return
         contenttype = self.request.headers.get("content-type")
-        if not contenttype.startsWith(contenttypestart):
+        if not contenttype.startswith(contenttypestart):
             raise RuntimeError(contenttype)
-        boundary = "--" + contenttype.substring(len(contenttypestart))
-        self.parser = Parser(self.request.body)
-        #System.out.println(this.parser.text)
+        boundary = "--" + contenttype[:len(contenttypestart)]
+        self.parser = Parser(rf"{self.request.body}")
         self.require(self.parser.match(string=boundary))
         boundary = "\r\n" + boundary
         while not self.parser.match(string="--\r\n"):
             self.require(self.parser.match(string="\r\n"))
-            self.require(self.parser.match(string="Content-Disposition: form-data name="))
+            self.require(self.parser.match(string="Content-Disposition: form-data; name="))
             name = self.quotedstring()
             filename = None
             isbinary = False
@@ -213,7 +211,7 @@ class RequestParser:
                 elif self.parser.match(string="text/"):
                     isbinary = False
                 else:
-                    raise Exception(f"parser {self.parser} bad file content-type")
+                    raise ParseException(self.parser, "bad file content-type")
                 while self.parser.incharrange('A','z') or self.parser.anyof("-."):
                     continue
                 contenttype = self.parser.textfrom(start)
@@ -226,7 +224,8 @@ class RequestParser:
             if filename is None:
                 self.request.parameters[name] = value
             else:
-                content = bytes(value) if isbinary else value
+                content = bytes(value) if all(c in '01' for c in content) else value
+                raise NotImplementedError("MultipartFiles Not Implemented Yet")
                 mf = MultipartFile(filename,contenttype,content)
                 self.request.parameters[name] = mf
             self.require(self.parser.match(boundary))
@@ -247,13 +246,13 @@ class RequestParser:
             return bytes(string,encoding="utf-8").decode()
         except UnicodeEncodeError as uee:
             self.parser.rollback()
-            raise RuntimeError(f"Unsupported Encoding. Parser:{self.parser} Error:{uee}")
+            raise ParseException(self.parser, "unsupported encoding" + str(uee))
         except ValueError as ve:
             self.parser.rollback()
-            raise RuntimeError(f"Illegal Argument. Parser:{self.parser} Error:{ve}")
+            raise ParseException(self.parser, "illegal argument" + str(ve))
 
     def parsejson(self, charset):
-        if self.request.body == None:
+        if self.request.body is None:
             print("body is empty(None aka null)\n"+self.request.rawhead)
             return
         value = str(self.request.body,encoding=charset)

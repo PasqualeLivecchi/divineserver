@@ -1,6 +1,7 @@
 from .requestparser import RequestParser
 from .request import Request
 from .response import Response
+from .parser import ParseException
 import asyncio,socket
 
 
@@ -25,7 +26,7 @@ async def connectionhandler(server,connsock):
         try:
             buf = await loop.sock_recv(connsock,sixty4kb)
             # msg = await loop.sock_recv(connsock,sixty4kb)
-            print(f"buf:{buf}")
+            # print(f"buf:{buf}")
             size = len(buf)
             if buf == -1:
                 print("buf == -1")
@@ -79,11 +80,12 @@ async def connectionhandler(server,connsock):
             if scheme:
                 reqparser.request.scheme = scheme
             resp = server.handler(reqparser.request)
-        except Exception as e:
+        except ParseException as pe:
+            print("connectionhandler parseexception:" + str(pe))
             msg = ""
             if contenttype:
                 msg += "invalid content for content-type " + contenttype + "\n"
-            msg += "parse error\n" + request.rawhead.strip() + "\n" + str(e)
+            msg += "parse error\n" + request.rawhead.strip() + "\n" + str(pe)
             resp = Response.errorresponse(400, msg)
         # print(f"response before: {resp}")
         resp.headers["connection"] = "close"
@@ -91,13 +93,13 @@ async def connectionhandler(server,connsock):
         header = resp.toheaderstring().encode("utf-8")
         body = resp.body['content'].encode('utf-8')
         await loop.sock_sendall(connsock, header)
-        print(f"connection handle header sent:{header}")
+        # print(f"connection handle header sent:{header}")
         await loop.sock_sendall(connsock, body)
-        print(f"connection handle body sent:{body}")
-    except Exception as e:
-        print(f"Error handling connection {e}")
-    finally:
+        # print(f"connection handle body sent:{body}")
         connsock.close()
+    except IOError as ioe:
+        print("connection error" + str(ioe))
+
 
 """
 class Connection:
