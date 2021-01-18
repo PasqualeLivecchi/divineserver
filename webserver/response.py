@@ -1,5 +1,6 @@
 from . import util
 from . import status
+import urllib.parse
 
 
 class Response:
@@ -13,9 +14,9 @@ class Response:
         self.headers[name] = value
 
     def setcookie(self,name,value,attributes={}):
-        buf = f"{util.urlencode(name)}={util.urlencode(value)}"
+        buf = self.urlencode(name) + "=" + self.urlencode(value)
         for k,v in attributes.items():
-            buf += f" {k}={v}"
+            buf += "; " + k + "=" + v
         self.addheader("Set-Cookie", str(buf))
 
     def toheaderstring(self):
@@ -40,3 +41,10 @@ class Response:
         response.body['content'] = text
         response.body['length'] = len(text)
         return response
+
+    @staticmethod
+    def urlencode(string):
+        try:
+            return urllib.parse.quote(str(string, encoding="UTF-8"))
+        except UnicodeEncodeError as uee:
+            raise RuntimeError(uee)

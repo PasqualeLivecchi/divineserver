@@ -2,35 +2,10 @@ from webserver.response import Response
 from webserver.request import Request
 from webserver.server import Server
 # from webserver.server import serve
-from webserver.handlers import handledict, handlefile, handlelist, handledir, handlelog, handlesafely, handlecontenttype
+from webserver.handlers import handledict, handlefile, handlelist, handledir, handlelog, handlesafely, handlecontenttype, handlehttpheaders, handlehttpparams, handlehttpcookies
 from webserver import util
-from io import BufferedRandom
+from functools import partial
 
-
-# class Cookies(Handler):
-#     def handle(self, request):
-#         print("cookies handler")
-#         response = Response()
-#         name = request.parameters.get("name", None)
-#         if name:
-#             attributes = {}
-#             value = request.parameters.get("value", None)
-#             if value:
-#                 response.setcookie(name, value, attributes)
-#             else:
-#                 attributes["Max-Age"] = "0"
-#                 response.setcookie(name, "delete", attributes)
-#
-#         response.headers.get("content-type", "text/plain charset=utf-8")
-#         try:
-#             s = ""
-#             for k, v in request.cookies.items():
-#                 s += k + " = " + v + "\n"
-#             response.body['content'] = s
-#             response.body['length'] = len(s)
-#             return response
-#         except IOError as ioe:
-#             raise Exception(ioe)
 
 def handleexample(request):
     print("example handler")
@@ -44,39 +19,8 @@ def handleexample(request):
         raise IOError(f"Shouldn't happen {e}")
 
 
-# class Headers(Handler):
-def handleheaders(request):
-    print("headers handler")
-    response = Response()
-    response.headers["content-type"] = "text/plain; charset=utf-8"
-    try:
-        s = ""
-        for k, v in request.headers.items():
-            s += f"{k}: {v}\n"
-        response.body['content'] = s
-        response.body['length'] = len(s)
-        return response
-    except IOError as ioe:
-        raise IOError(ioe)
-
-
-# class Params(Handler):
-def handleparams(request):
-    print("params handler")
-    response = Response()
-    response.headers["content-type"] = "text/plain charset=utf-8"
-    try:
-        s = ""
-        for k, v in request.parameters.items():
-            s += f"{k} = {v}\n"
-        response.body['content'] = s
-        response.body['length'] = len(s)
-        return response
-    except Exception as e:
-        raise RuntimeError(e)
-
-def simple():  # throws IOError {
-    Server(handleexample).start()
+def simple():
+    Server(partial(handlesafely,handler=handleexample)).start()
 
 
 def fancy():

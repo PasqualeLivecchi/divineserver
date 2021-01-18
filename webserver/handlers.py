@@ -5,36 +5,44 @@ import logging, os, datetime
 def handlesafely(request,handler):
     print("handlers handlesafely")
     try:
-        response = handler.handle(request)
+        response = handler(request)
         return response if response else Response.errorresponse(404, request.path + " not found\n")
     except RuntimeError as e:
         print("handlesafely error")
         response = Response()
         response.statuscode = 500
         response.headers['content-type'] = "text/plain; charset=utf-8"
-        response.body['content'] = "Internal Server Error\r\n" + e
+        response.body['content'] = "Internal Server Error\n\n" + e
         return response
 
 
-def handledict(request, dictofhandlers={}):
+def handledict(request, dictofhandlers):
     print("handlers handledict")
-    handler = dictofhandlers.get(request.path, None)
-    return handler if handler else handler(request)
+    if isinstance(dictofhandlers,dict):
+        handler = dictofhandlers.get(request.path, None)
+        return handler(request) if handler else None
+    else:
+        raise ValueError("requires dictionary of handlers")
+
+
+def handlelist(request, listofhandlers):
+    print("handlers handlelist")
+    if isinstance(listofhandlers, list):
+        for handler in listofhandlers:
+            response = handler(request)
+            if response:
+                return response
+        return None
+    else:
+        raise ValueError("requires list of handlers")
 
 
 def handlelog(request,handler):
+    print("handlers handlelog")
     log = logging.Logger()
     response = handler(request)
     log.info(f"{request.method} {request.path} {response.status} {response.body['length']}")
     return response
-
-
-def handlelist(request,listofhandlers):
-    for handler in listofhandlers:
-        response = handler(request)
-        if response:
-            return response
-    return None
 
 
 def handleindex(request,handler,indexname):
@@ -60,6 +68,7 @@ def handlefile(request, dirfile="."):
 
 
 def handledir(request, directory="."):
+    print("handlers handledir")
     response = Response()
     with open(os.path.join(directory,request.path)) as fileordir:
         if os.path.isdir(fileordir):
@@ -105,6 +114,50 @@ def handlecontenttype(request,handler,charset):
             response.headers["content-type"] = _type
     return response
 
+
+def handlehttpparams(request):
+    print("handlers handlehttpparams")
+    response = Response()
+    response.headers["content-type"] = "text/plain; charset=utf-8"
+    s = ""
+    for k, v in request.parameters.items():
+        s += k + " = " + v + "\n"
+    response.body['content'] = s
+    response.body['length'] = len(s)
+    return response
+
+
+def handlehttpheaders(request):
+    print("handlers handlehttpheaders")
+    response = Response()
+    response.headers["content-type"] = "text/plain; charset=utf-8"
+    s = ""
+    for k, v in request.headers.items():
+        s += k + ": " + v + "\n"
+    response.body['content'] = s
+    response.body['length'] = len(s)
+    return response
+
+
+def handlehttpcookies(request):
+    print("handlers handlehttpcookies")
+    response = Response()
+    name = request.parameters.get("name", None)
+    if name:
+        attributes = {}
+        value = request.parameters.get("value",None)
+        if value:
+            response.setcookie(name,value,attributes)
+        else:
+            attributes["Max-Age"] = "0"
+            response.setcookie(name, "delete", attributes)
+    response.headers.get("content-type", "text/plain; charset=utf-8")
+    s = ""
+    for k, v in request.cookies.items():
+        s += k + " = " + v + "\n"
+    response.body['content'] = s
+    response.body['length'] = len(s)
+    return response
 
 # class SafeHandler(Handler):
 #     def __init__(self, handler):

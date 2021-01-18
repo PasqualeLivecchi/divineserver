@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pprint import pprint
 import inspect
 
 
@@ -14,7 +15,7 @@ class Parser:
             self.text = text
             self.length = len(text)
         else:
-            raise ValueError("String required")
+            raise ValueError("string required")
 
     def i(self, i=None):
         if i:
@@ -109,7 +110,6 @@ class Parser:
 
     def noneof(self, s):
         # print("parser noneof")
-        # print(f"noneof self.endofinput():{self.endofinput()} s.find(self.text[self.i():self.i()+1])!=-1{s.find(self.text[self.i()]) != -1}")
         if self.endofinput() or s.find(self.text[self.i()]) != -1:
             return False
         self.i(1)
@@ -117,7 +117,6 @@ class Parser:
 
     def incharrange(self, clow, chigh):
         # print("parser incharrange")
-        # cl,ch = ord(clow),ord(chigh)
         if self.endofinput():
             print(f"parser incharrange endofinput:{self.endofinput()}")
             return False
@@ -180,9 +179,6 @@ class ParseException(Exception):
         return [l.replace('\r', '\r\n') for l in self.text.split("\n")]
 
     def __str__(self):
-        print(f"parseexception curframe2:{inspect.getouterframes(inspect.currentframe(),4)}")
-        # print(f"parseexception curframe21:{inspect.getouterframes(inspect.currentframe(),2)[1]}")
-        # print(f"parseexception curframe213:{inspect.getouterframes(inspect.currentframe(),2)[1][3]}")
         line, pos, msg, = "",0,super(ParseException, self).__str__()
         if '\n' not in self.text:
             line = self.text

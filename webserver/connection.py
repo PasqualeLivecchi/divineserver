@@ -29,7 +29,6 @@ async def connectionhandler(server,connsock):
             # print(f"buf:{buf}")
             size = len(buf)
             if buf == -1:
-                print("buf == -1")
                 if size == 0:
                     print("buf == -1 and size == 0")
                     connsock.close()

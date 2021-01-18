@@ -25,7 +25,7 @@ class RequestParser:
         self.parser = Parser(rf"{self.request.rawhead}")
         self.parserequestline()
         while not self.parser.match(string="\r\n"):
-            print("new property")
+            # print("new property")
             self.parserheaderfield()
         self.parsecookies()
 

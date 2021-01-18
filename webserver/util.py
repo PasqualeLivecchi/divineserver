@@ -7,6 +7,7 @@ def urlencode(string):
     except UnicodeEncodeError as uee:
         raise RuntimeError(uee)
 
+
 def add(kv,key,value):
     current = kv.get(key)
     if current == None:
@@ -20,6 +21,7 @@ def add(kv,key,value):
         lst.append(value)
         kv[key] = lst
 
+
 def byte2string(bytearr,charset): # throws UnsupportedEncodingException {
     if charset != None:
         return str(bytearr,encoding=charset)
@@ -27,6 +29,7 @@ def byte2string(bytearr,charset): # throws UnsupportedEncodingException {
     for ba in bytearr:
         arrchar.append(ba)
     return ''.join(arrchar)
+
 
 def string2bytes(string):
     b = bytes(len(string))
