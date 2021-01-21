@@ -3,7 +3,6 @@ from webserver.request import Request
 from webserver.server import Server
 # from webserver.server import serve
 from webserver.handlers import handledict, handlefile, handlelist, handledir, handlelog, handlesafely, handlecontenttype, handlehttpheaders, handlehttpparams, handlehttpcookies
-from webserver import util
 from functools import partial
 
 
@@ -20,7 +19,7 @@ def handleexample(request):
 
 
 def simple():
-    Server(partial(handlesafely,handler=handleexample)).start()
+    Server(handleexample).start()
 
 
 def fancy():
@@ -44,5 +43,5 @@ def fancy():
 if __name__ == '__main__':
     print("simple")
     simple()
-    # serve()
+
 

@@ -1,7 +1,8 @@
 from .connection import msghandler, connectionhandler
 # from .connection import Connection
-from concurrent.futures import ThreadPoolExecutor
-import socket, asyncio
+import socket, asyncio, concurrent.futures
+from functools import partial
+from contextlib import asynccontextmanager
 
 
 class Server:
@@ -16,17 +17,18 @@ class Server:
         self.sock.bind((self.host, self.port))
         self.sock.listen(10)
 
-    async def run(self):
-        try:
-            while not self.loop.is_closed():
+    async def threxecution(self):
+        with concurrent.futures.ThreadPoolExecutor() as threxecutor:
+            while not self.loop.is_closed() and self.loop.is_running():
                 connsock, addr = await self.loop.sock_accept(self.sock)
-                self.loop.create_task(connectionhandler(self,connsock))
-        except IOError as ioe:
-            print("server start loop error",ioe)
+                result = await self.loop.run_in_executor(threxecutor, partial(connectionhandler, self,connsock))
+                print("connsock" + result)
+            else:
+                print("server closed on port" + str(self.port))
 
     def start(self):
         try:
-            self.loop.create_task(self.run())
+            self.loop.create_task(self.threxecution())
             print("started server on port " + str(self.port))
             self.loop.run_forever()
         except Exception as e:
