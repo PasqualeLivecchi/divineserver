@@ -16,21 +16,21 @@ class Server:
         self.sock.setblocking(False)
         self.sock.bind((self.host, self.port))
         self.sock.listen(10)
+        self.threxecutor = concurrent.futures.ThreadPoolExecutor()
 
-    async def threxecution(self):
-        with concurrent.futures.ThreadPoolExecutor() as threxecutor:
-            while not self.loop.is_closed() and self.loop.is_running():
-                connsock, addr = await self.loop.sock_accept(self.sock)
-                result = await self.loop.run_in_executor(threxecutor, partial(connectionhandler, self,connsock))
-                print("connsock" + result)
-            else:
-                print("server closed on port" + str(self.port))
+    async def run(self):
+        while True:
+            connsock, addr = await self.loop.sock_accept(self.sock)
+            self.loop.create_task(connectionhandler(self,connsock))
+        else:
+            print("server closed on port" + str(self.port))
 
     def start(self):
         try:
-            self.loop.create_task(self.threxecution())
+            self.loop.create_task(self.run())
             print("started server on port " + str(self.port))
             self.loop.run_forever()
+            self.loop.close()
         except Exception as e:
             print("error starting server: " + str(e))
 
