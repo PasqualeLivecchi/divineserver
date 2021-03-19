@@ -1,104 +1,47 @@
 from webserver.response import Response
 from webserver.request import Request
 from webserver.server import Server
-from webserver.handlers import MapHandler,FileHandler,ListHandler,DirHandler,LogHandler,SafeHandler,ContentTypeHandler, Handler
-from webserver import util
-from io import BufferedRandom
-import pickle
-
-class Cookies(Handler):
-    def handle(self,request):
-        print("cookies handler")
-        response = Response()
-        name = request.parameters.get("name", None)
-        if name:
-            attributes = {}
-            value = request.parameters.get("value", None)
-            if value:
-                response.setcookie(name,value,attributes)
-            else:
-                attributes["Max-Age"] = "0"
-                response.setcookie(name,"delete",attributes)
-
-        response.headers.get("content-type", "text/plain charset=utf-8")
-        try:
-            with open(response, "w") as w:
-                for k,v in request.cookies.items():
-                    writer.write(k+" = "+v+"\n")
-                return response
-        except IOError as ioe:
-            raise Exception(ioe)
+# from webserver.server import serve
+from webserver.handlers import handledict, handlefile, handlelist, handledir, handlelog, handlesafely, handlecontenttype, handlehttpheaders, handlehttpparams, handlehttpcookies
+from functools import partial
 
 
-class Example(Handler):
-    def handle(self,request):
-        print("example handler")
-        response = Response()
-        response.headers.get("content-type", "text/plain charset=utf-8")
-        try:
-            response.body['content'] = "Hello World\n"#(str("Hello World\n").encode(response.headers.get('content-type',"text/plain charset=utf-8").split('charset=')[1]))
-            response.body['length'] = len(response.body['content'])
-            return pickle.dumps(response)
-        except Exception as ioe:
-            raise IOError(f"Shouldn't happen {ioe}")
-
-def simple(): # throws IOError {
-    handler = Example()
-    # handler.handle(Request())
-    Server(handler,8080).run()
-
-def fancy(): # throws IOError {
-    kv = {}
-    kv.get("/hello", Example())
-    kv.get("/headers", Headers())
-    kv.get("/params", Params())
-    kv.get("/cookies", Cookies())
-    kvhandler = MapHandler(kv)
-    filehandler = FileHandler()
-    dirhandler = DirHandler(filehandler)
-    listhandler = ListHandler([kvhandler, filehandler, dirhandler])
-    cthandler = ContentTypeHandler(listhandler)
-    safehandler = SafeHandler(cthandler)
-    # loghandler = LogHandler(safehandler)
-    Server(listhandler,8080).run()
+def handleexample(request):
+    print("example handler")
+    response = Response()
+    response.headers["content-type"] = "text/plain; charset=utf-8"
+    try:
+        response.body['content'] = "WTF is this shit.\r\nHey today baby I got your money don't ya worry say hey, baby I got your money."
+        response.body['length'] = len(response.body['content'])
+        return response
+    except Exception as e:
+        raise IOError(f"Shouldn't happen {e}")
 
 
-class Headers(Handler):
-    def handle(self,request):
-        print("headers handler")
-        response = Response()
-        response.headers.get("content-type", "text/plain charset=utf-8")
-        try:
-            s =""
-            for k,v in request.headers.items():
-                response.body[k] = v
-            return pickle.dumps(response)
-            # with open(response, "wb+") as w:
-            #     for k,v in request.headers.items():
-            #         w.write(k+": "+v+"\n")
-            #     return response
-        except IOError as ioe:
-            raise Exception(ioe)
+def simple():
+    Server(handleexample).start()
 
 
-class Params(Handler):
-    def handle(self,request):
-        print("params handler")
-        response = Response()
-        response.headers.get("content-type", "text/plain charset=utf-8")
-        try:
-            s =""
-            for k,v in request.parameters.items():
-                s += k+" = "+v+"\n"
-            response.body = s
-            return pickle.dumps(response)
-            # with open(response, "wb+") as w:
-            #     for k,v in request.parameters.items():
-            #         w.write(k+" = "+v+"\n")
-            #     return response
-        except IOError as ioe:
-            raise Exception(ioe)
+def fancy():
+    pass
+    # kv = {"/hello": Example(), "/headers": Headers(), "/params": Params(), "/cookies": Cookies()}
+    # print("maphandler ok")
+    # filehandler = FileHandler()
+    # print("filehandler ok")
+    # dirhandler = DirHandler(filehandler)
+    # print("dirhandler ok")
+    # listhandler = ListHandler([kvhandler, filehandler, dirhandler])
+    # print("listhandler ok")
+    # cthandler = ContentTypeHandler(listhandler)
+    # print("contenttypehandler ok")
+    # safehandler = SafeHandler(cthandler)
+    # print("safehandler ok")
+    # # loghandler = LogHandler(safehandler)
+    # Server(SafeHandler(Params()), 8080).start()
+
 
 if __name__ == '__main__':
-    # simple()
-    fancy()
+    print("simple")
+    simple()
+
+

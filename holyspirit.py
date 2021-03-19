@@ -13,7 +13,7 @@ if __name__ == '__main__':
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.submit(godclock)
     while not keyboard.is_pressed('space'):
-        pass
+        continue
     else:
         print(n)
     # print(n)

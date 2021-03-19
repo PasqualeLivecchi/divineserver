@@ -1,10 +1,12 @@
 from . import util
+from . import status
+import urllib.parse
 
 
 class Response:
-    def __init__(self, protocol="HTTP/1.1",status="OK",headers={"server": "spellsoftruth"},body={"length":None,"content":None}):
+    def __init__(self, protocol="HTTP/1.1",statuscode=200,headers={"server": "spellsoftruth"},body={"length":0,"content":None}):
         self.protocol = protocol
-        self.status = status
+        self.statuscode = statuscode
         self.headers = headers
         self.body = body
 
@@ -12,26 +14,37 @@ class Response:
         self.headers[name] = value
 
     def setcookie(self,name,value,attributes={}):
-        buf = f"{util.urlencode(name)}={util.urlencode(value)}"
+        buf = self.urlencode(name) + "=" + self.urlencode(value)
         for k,v in attributes.items():
-            buf += f" {k}={v}"
+            buf += "; " + k + "=" + v
         self.addheader("Set-Cookie", str(buf))
 
     def toheaderstring(self):
-        sb = f"{self.protocol} {self.status.code} {self.status.reason} \r\n"
-        for key,value in headers.items():
+        sb = f"{self.protocol} {self.statuscode} {status.getstatus(self.statuscode)}\r\n"
+        for key,value in self.headers.items():
+            # print(f"toheaderstring key:{key} value:{value}")
             if isinstance(value, list):
                 for v in value:
                     sb += f"{key}: {v}\r\n"
             else:
                 sb += f"{key}: {value}\r\n"
         sb += "\r\n"
-        return str(sb)
+        print(f"response toheaderstring:{sb}")
+        return sb
 
-    def errorresponse(self,status, text):
-        self.response = Response()
-        self.response.status = status
-        self.response.headers["content-type"] = "text/plain charset=utf-8"
-        with open(self.response, "w") as w: #PrintWriter(ResponseOutputStream(response))
-            w.write(text)
-        return self.response
+    @staticmethod
+    def errorresponse(statuscode, text):
+        print("response error")
+        response = Response()
+        response.statuscode = int(statuscode)
+        response.headers["content-type"] = "text/plain; charset=utf-8"
+        response.body['content'] = text
+        response.body['length'] = len(text)
+        return response
+
+    @staticmethod
+    def urlencode(string):
+        try:
+            return urllib.parse.quote(str(string, encoding="UTF-8"))
+        except UnicodeEncodeError as uee:
+            raise RuntimeError(uee)
