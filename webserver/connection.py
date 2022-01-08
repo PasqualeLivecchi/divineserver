@@ -7,10 +7,10 @@ import asyncio,socket
 
 async def msghandler(server,connsock):
     print("connection handlemsg")
-    loop,sixty4kb = server.loop,65536
+    loop,twoMB = server.loop,16_777_216
     try:
-        while (msg := await loop.sock_recv(connsock,sixty4kb)):
-            # msg = await loop.sock_recv(connsock,sixty4kb)
+        while (msg := await loop.sock_recv(connsock,twoMB)):
+            # msg = await loop.sock_recv(connsock,twoMB)
             print(msg)
             await loop.sock_sendall(connsock,msg)
     except Exception as e:
@@ -22,10 +22,10 @@ async def msghandler(server,connsock):
 async def connectionhandler(server,connsock):
     print("connection handleconnection")
     try:
-        loop,request,resp,contenttype,ordr,ordn,sixty4kb,endofheader,bufbreak = server.loop,Request(),None,None,ord('\r'),ord('\n'),65536,0,False
+        loop,request,resp,contenttype,ordr,ordn,twoMB,endofheader,bufbreak = server.loop,Request(),None,None,ord('\r'),ord('\n'),16_777_216,0,False
         try:
-            buf = await loop.sock_recv(connsock,sixty4kb)
-            # msg = await loop.sock_recv(connsock,sixty4kb)
+            buf = await loop.sock_recv(connsock,twoMB)
+            # msg = await loop.sock_recv(connsock,twoMB)
             # print(f"buf:{buf}")
             size = len(buf)
             if buf == -1:
@@ -74,7 +74,7 @@ async def connectionhandler(server,connsock):
                     print("application/json; charset=utf-8")
                     reqparser.parsejson("utf-8")
                 else:
-                    print("unknown request contenttype: "+contenttype)
+                    print(f"unknown request contenttype: {contenttype}")
             scheme = reqparser.request.headers.get("x-forwarded-proto", None)
             if scheme:
                 reqparser.request.scheme = scheme
@@ -97,7 +97,7 @@ async def connectionhandler(server,connsock):
         # print(f"connection handle body sent:{body}")
         connsock.close()
     except IOError as ioe:
-        print("connection error" + str(ioe))
+        print(f"connection error {ioe}")
 
 
 """

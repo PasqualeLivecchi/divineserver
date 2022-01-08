@@ -8,20 +8,22 @@ class Parser:
     length = 0
     stack = [0 for i in range(256)]
     frame = 0
-    inthigh = 0
+    maxindex = -1
 
     def __init__(self, text, encoding='utf-8'):
         if isinstance(text,str):
             self.text = text
             self.length = len(text)
+            self.maxindex = -1
         else:
             raise ValueError("string required")
 
-    def i(self, i=None):
-        if i:
-            self.stack[self.frame] += i
-            if self.inthigh < self.stack[self.frame]:
-                self.inthigh = self.stack[self.frame]
+    def i(self, index=None):
+        if index:
+            self.stack[self.frame] += index
+            # print(f"self.maxindex: {self.maxindex} self.stack[self.frame]: {self.stack[self.frame]}")
+            if self.maxindex < self.stack[self.frame]:
+                self.maxindex = self.stack[self.frame]
         else:
             return self.stack[self.frame]
 
@@ -64,7 +66,7 @@ class Parser:
 
     def highindex(self):
         # print("parser highindex")
-        return self.inthigh
+        return self.maxindex
 
     def lastchar(self):
         # print("parser lastchar")

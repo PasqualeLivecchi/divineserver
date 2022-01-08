@@ -1,8 +1,9 @@
 from .connection import msghandler, connectionhandler
-# from .connection import Connection
-import socket, asyncio, concurrent.futures
+import socket, asyncio, sys, traceback #, concurrent.futures
 from functools import partial
 from contextlib import asynccontextmanager
+# from .connection import Connection
+# from os import cpu_count
 
 
 class Server:
@@ -16,33 +17,42 @@ class Server:
         self.sock.setblocking(False)
         self.sock.bind((self.host, self.port))
         self.sock.listen(10)
-        self.threxecutor = concurrent.futures.ThreadPoolExecutor()
+        # self.threxecutor = concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count()*3)
+        # self.processexecutor = concurrent.futures.ProcessPoolExecutor()
 
     async def run(self):
+        # try:
         while True:
             connsock, addr = await self.loop.sock_accept(self.sock)
             self.loop.create_task(connectionhandler(self,connsock))
+            print(f"running: {self.loop.is_running()}")
         else:
-            print("server closed on port" + str(self.port))
+            print(f"server closed on port {self.port}")
+        # except Exception:
+        #     error = sys.exc_info()[0](traceback.format_exc())
+        #     print(f"error starting server: {error}")
+
 
     def start(self):
         try:
             self.loop.create_task(self.run())
-            print("started server on port " + str(self.port))
+            print(f"started server on port {self.port}")
             self.loop.run_forever()
             self.loop.close()
         except Exception as e:
-            print("error starting server: " + str(e))
+            print(f"error starting server: {e}")
 
     def shutdown(self):
         try:
             self.loop.stop()
-            isrunning = self.loop.is_running()
-            if not isrunning:
-                print("stopped server on port " + self.port)
+            # self.loop.close()
+            if self.loop.is_closed() or not self.loop.is_running():
+                print(f"stopped server on port {self.port}")
             else:
-                print("couldn't stop server on port " + self.port)
-            return isrunning
+                print(f"couldn't stop server on port {self.port}")
+        except Exception:
+            error = sys.exc_info()[0](traceback.format_exc())
+            print(f"error shutting down server: {error}")
         finally:
             self.loop.close()
 
